@@ -4,7 +4,9 @@ Trying to make HH SFW 😅
 
 ## Install
 
-Install from here: https://raw.githubusercontent.com/GetoHH/HH-SFW/refs/heads/master/hh-geto-sfw-script.js
+Install from here: https://sleazyfork.org/fr/scripts/565232-hentai-heroes-sfw
+
+Or by using the direct link: https://raw.githubusercontent.com/GetoHH/HH-SFW/refs/heads/master/hh-geto-sfw-script.js
 
 You need [TamperMonkey](https://www.tampermonkey.net) or a similar browser extension.
 
