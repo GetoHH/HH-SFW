@@ -4,7 +4,7 @@ Trying to make HH SFW 😅
 
 ## Install
 
-Install from here: https://github.com/GetoHH/HH-SFW/raw/refs/heads/main/dist/hh-geto-sfw-script.js
+Install from here: https://raw.githubusercontent.com/GetoHH/HH-SFW/refs/heads/master/hh-geto-sfw-script.js
 
 You need [TamperMonkey](https://www.tampermonkey.net) or a similar browser extension.
 
