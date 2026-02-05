@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      2.0.3
+// @version      2.0.5
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,8 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 2.0.5: Trying Github webhook
+// 2.0.4: Updating description
 // 2.0.3: Fixed login screen img removal
 // 2.0.2: Fixed champions css positions and mythic day lively scene
 // 2.0.1: Fixed Harem avatar modification
