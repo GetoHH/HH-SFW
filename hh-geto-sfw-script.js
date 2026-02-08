@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      2.1.0
+// @version      2.1.1
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 2.1.1: Fix mobile login image removal
 // 2.1.0: Remove mobile images
 // 2.0.6: Trying Github webhook again
 // 2.0.5: Trying Github webhook
@@ -443,6 +444,7 @@ const shopSelectorsOfImagesSrcToRemove = [
   '.container > .avatar',
   '.prestige > .avatar',
   '#special-offer > .background-video',
+  '.pwa-info-container > .install_app_girl',
 ];
 const shopSelectorsOfBackgroundImagesSrcToRemove = [
   '.bundle > #special-offer',
