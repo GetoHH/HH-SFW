@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      2.1.5
+// @version      2.1.6
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 2.1.6: Fix event selectors
 // 2.1.5: Fix event selectors
 // 2.1.4: Fix harem selectors
 // 2.1.3: Fix harem selectors
@@ -194,7 +195,7 @@ const eventSelectorsOfImagesSrcToRemove = [
   '.lively_scenes_preview > div > img',
 ];
 const eventSelectorsOfGirlsSrcToModify = [];
-const eventSelectorsOfGirlsAvatarsSrcToModify = ['.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'];
+const eventSelectorsOfGirlsAvatarsSrcToModify = ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'];
 const eventSelectorsOfGirlsNumerousIconsSrcToModify = [];
 
 // Girl screen https://www.hentaiheroes.com/girl/143960742
