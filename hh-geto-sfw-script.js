@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      2.1.6
+// @version      2.2.0
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 2.2.0: Add waifu page support
 // 2.1.6: Fix event selectors
 // 2.1.5: Fix event selectors
 // 2.1.4: Fix harem selectors
@@ -410,7 +411,7 @@ const pentaDrillBattleSelectorsOfGirlsAvatarsSrcToModify = ['.pvp-girls > .avata
 const pentaDrillBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
 const pentaDrillBattleSelectorsOfImagesSrcToRemove = [];
 
-// Path of valor screen https://www.hentaiheroes.com/pvp-arena.html
+// Pvp arena screen https://www.hentaiheroes.com/pvp-arena.html
 const pvpArenaSelectorsOfGirlsSrcToModify = [];
 const pvpArenaSelectorsOfGirlsAvatarsSrcToModify = ['.feature-girl > .avatar'];
 const pvpArenaSelectorsOfGirlsNumerousIconsSrcToModify = [];
@@ -496,6 +497,12 @@ const trollPreBattleSelectorsOfImagesSrcToRemove = [
   ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
   ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
 ];
+
+// Waifu screen https://www.hentaiheroes.com/waifu.html
+const waifuSelectorsOfImagesSrcToRemove = [];
+const waifuSelectorsOfGirlsSrcToModify = [];
+const waifuSelectorsOfGirlsAvatarsSrcToModify = ['.girl-display > .avatar'];
+const waifuSelectorsOfGirlsNumerousIconsSrcToModify = [];
 
 // Main quest troll screens https://www.hentaiheroes.com/world/12
 const worldSelectorsOfImagesSrcToRemove = ['.troll_world > .troll-tier-img'];
@@ -1235,6 +1242,15 @@ function hideMedias() {
     processImagesSrcToHidePermanently(trollPreBattleSelectorsOfImagesSrcToRemove);
   }
 
+  if (window.location.href.includes('/waifu.html')) {
+    if (DEBUG_ACTIVATED) {
+      console.log(' ');
+      console.log('> WAIFU PAGE');
+    }
+
+    processImagesSrcToHidePermanently(waifuSelectorsOfImagesSrcToRemove);
+  }
+
   if (window.location.href.includes('/world/')) {
     if (DEBUG_ACTIVATED) {
       console.log(' ');
@@ -1756,6 +1772,13 @@ function hideMediasTemporarily() {
     //   trollPreBattleSelectorsOfGirlsAvatarsSrcToModify,
     //   trollPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
     // );
+  }
+
+  if (window.location.href.includes('/waifu.html')) {
+    if (DEBUG_ACTIVATED) {
+      console.log(' ');
+      console.log('> WAIFU PAGE');
+    }
   }
 
   if (window.location.href.includes('/world/')) {
@@ -2367,6 +2390,20 @@ function modifyMedias() {
       trollPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
     );
   }
+
+  if (window.location.href.includes('/waifu.html')) {
+    foundMatchingUrl = true;
+    if (DEBUG_ACTIVATED) {
+      console.log(' ');
+      console.log('> WAIFU PAGE');
+    }
+
+  }
+  processGirlImagesSrcToModify(
+    waifuSelectorsOfGirlsSrcToModify,
+    waifuSelectorsOfGirlsAvatarsSrcToModify,
+    waifuSelectorsOfGirlsNumerousIconsSrcToModify,
+  );
 
   if (window.location.href.includes('/world/')) {
     foundMatchingUrl = true;
