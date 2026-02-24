@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      2.2.0
+// @version      3.0.0
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.0.0: Remove girl img src modifications and observer due to girl media url changes that no longer allow the process
 // 2.2.0: Add waifu page support
 // 2.1.6: Fix event selectors
 // 2.1.5: Fix event selectors
@@ -73,26 +74,6 @@ const HIDE_BACKGROUND = false;
 const HIDE_GIRL_AVATARS = true;
 const HIDE_PLAYER_AVATARS = true;
 const REPLACE_BACKGROUND = true;
-
-const NB_OF_GIRL_ICONS_TO_PROCESS_AT_ONCE = 20;
-let currentIconIndex = 0;
-
-let observer;
-let killObserverCount = 0;
-const killObserverDelay = 10;
-let noElementsProcessedCount = 0;
-const noElementsProcessedDelay = 10;
-let noIconElementsProcessedCount = 0;
-const noIconElementsProcessedDelay = 10;
-let observerGirlImagesProcessed = false;
-let observerGirlAvatarsImagesProcessed = false;
-let observerGirlIconsProcessStarted = false;
-let observerGirlIconsProcessEnded = false;
-
-const girlsWithSFWIndexEqualsOne = ['225777755', '298984036'];
-
-const girlsRegex =
-  /(.*\/)([0-9]+)\/([a-zA-Z]+)([0-9t]+)([a-zA-Z0-9-_]*)\.(png|jpg|jpeg|webp|gif|bmp|tiff|svg|ico)$/;
 
 // Activities screen https://www.hentaiheroes.com/activities.html
 const activitiesSelectorsOfBackgroundImagesSrcToRemove = ['.contest > .contest_header'];
@@ -529,66 +510,6 @@ const worldBossEventPreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .gi
 const worldBossEventPreBattleSelectorsOfGirlsAvatarsSrcToModify = [];
 const worldBossEventPreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
 
-function initObserver() {
-  if (DEBUG_ACTIVATED) {
-    console.log('> ');
-    console.log('> INIT OBSERVER');
-  }
-
-  resetObserverState();
-  killObserverCount = 0;
-  noElementsProcessedCount = 0;
-  noIconElementsProcessedCount = 0;
-
-  if (!observer) {
-    if (DEBUG_ACTIVATED) {
-      console.log('> ');
-      console.log('> MutationObserver initialized.');
-    }
-    // Use MutationObserver to watch for dynamically loaded images
-    observer = new MutationObserver(function (mutations) {
-      mutations.forEach(function () {
-        modifyMedias();
-      });
-    });
-  }
-
-  // Start observing the main document
-  if (observer) {
-    if (DEBUG_ACTIVATED) {
-      console.log('> ');
-      console.log('> MutationObserver started.');
-    }
-    observer.observe(document.body, {childList : true, subtree : true});
-  }
-}
-
-function resetObserverState() {
-  observerGirlImagesProcessed = false;
-  observerGirlAvatarsImagesProcessed = false;
-  observerGirlIconsProcessStarted = false;
-  observerGirlIconsProcessEnded = false;
-}
-
-function killObserver() {
-  if (DEBUG_ACTIVATED) {
-    console.log('> ');
-    console.log('> killObserver');
-    console.log('> killObserverCount =', killObserverCount);
-  }
-  if (observer) {
-    if (DEBUG_ACTIVATED) {
-      console.log('> MutationObserver disconnected.');
-    }
-    observer.disconnect();
-    observer = null;
-  }
-  resetObserverState();
-  killObserverCount = 0;
-  noElementsProcessedCount = 0;
-  noIconElementsProcessedCount = 0;
-}
-
 function processGirlImagesSrcToModify(
   selectorsOfGirlsSrcToModify,
   selectorsOfGirlsAvatarsSrcToModify,
@@ -597,149 +518,9 @@ function processGirlImagesSrcToModify(
   if (DEBUG_ACTIVATED) {
     console.log('> PROCESSING GIRLS SRC TO MODIFY');
   }
-  if (observer) {
-    if (selectorsOfGirlsSrcToModify.length === 0) {
-      observerGirlImagesProcessed = true;
-    }
-    if (HIDE_GIRL_AVATARS || selectorsOfGirlsAvatarsSrcToModify.length === 0) {
-      observerGirlAvatarsImagesProcessed = true;
-    }
-    if (selectorsOfGirlsNumerousIconsSrcToModify.length === 0) {
-      observerGirlIconsProcessStarted = true;
-      observerGirlIconsProcessEnded = true;
-    }
-  }
 
   if (HIDE_GIRL_AVATARS && selectorsOfGirlsAvatarsSrcToModify.length > 0) {
     processImagesSrcToHidePermanently(selectorsOfGirlsAvatarsSrcToModify);
-  }
-
-  const baseSelectors = HIDE_GIRL_AVATARS
-    ? [...selectorsOfGirlsSrcToModify]
-    : [...selectorsOfGirlsAvatarsSrcToModify, ...selectorsOfGirlsSrcToModify];
-
-  const baseElements =
-    baseSelectors.length > 0 ? document.querySelectorAll(baseSelectors.join(', ')) : [];
-
-  const iconElements =
-    selectorsOfGirlsNumerousIconsSrcToModify.length > 0
-      ? document.querySelectorAll(selectorsOfGirlsNumerousIconsSrcToModify.join(', '))
-      : [];
-
-  const totalIconElements = iconElements.length;
-  const processIconElements = totalIconElements > 0;
-  const elements = baseElements.length > 0 ? Array.from(baseElements) : [];
-
-  const startIndex = currentIconIndex;
-  const endIndex = Math.min(startIndex + NB_OF_GIRL_ICONS_TO_PROCESS_AT_ONCE, totalIconElements);
-  const batchedIconElements = Array.from(iconElements).slice(startIndex, endIndex);
-
-  currentIconIndex = endIndex >= totalIconElements ? 0 : endIndex;
-
-  if (DEBUG_ACTIVATED) {
-    console.log('> nb of baseElements:', elements.length);
-    console.log('> nb of iconElements:', totalIconElements);
-    console.log('> nb of batchedIconElements:', batchedIconElements.length);
-    console.log('> current batch (start, end):', startIndex, endIndex);
-  }
-
-  let nbOfElementsProcessed = 0;
-  elements.forEach((element) => {
-    if (element && element.src && !element.src.includes('grade_skins')) {
-      const baseSrc = element.src.split('?')[0];
-      const newSrc = baseSrc.replace(girlsRegex, function (match, p1, p2, p3, p4, p5, p6) {
-        const sfwIndex = girlsWithSFWIndexEqualsOne.includes(p2) ? '1' : '0';
-        return p4 === sfwIndex ? match : p1 + p2 + '/' + p3 + sfwIndex + p5 + '.' + p6;
-      });
-
-      if (newSrc !== baseSrc) {
-        if (DEBUG_ACTIVATED) {
-          console.log('> altering girl src from:', element.outerHTML);
-        }
-        element.src = newSrc;
-        nbOfElementsProcessed++;
-      }
-    }
-  });
-  if (DEBUG_ACTIVATED) {
-    console.log('> nb of girl elements processed:', nbOfElementsProcessed);
-  }
-  if (nbOfElementsProcessed === 0) {
-    noElementsProcessedCount++;
-  }
-  if (
-    observer &&
-    elements.length > 0 &&
-    (nbOfElementsProcessed > 0 || noElementsProcessedCount > noElementsProcessedDelay)
-  ) {
-    if (DEBUG_ACTIVATED) {
-      console.log('> OBSERVER GIRL TRUE');
-    }
-    observerGirlImagesProcessed = true;
-    observerGirlAvatarsImagesProcessed = true;
-  }
-
-  if (processIconElements) {
-    setTimeout(() => {
-      let nbOfIconElementsProcessed = 0;
-      batchedIconElements.forEach((element) => {
-        if (element && element.src && !element.src.includes('grade_skins')) {
-          const baseSrc = element.src.split('?')[0];
-          const newSrc = baseSrc.replace(girlsRegex, function (match, p1, p2, p3, p4, p5, p6) {
-            const sfwIndex = girlsWithSFWIndexEqualsOne.includes(p2) ? '1' : '0';
-            return p4 === sfwIndex ? match : p1 + p2 + '/' + p3 + sfwIndex + p5 + '.' + p6;
-          });
-
-          if (newSrc !== baseSrc) {
-            if (DEBUG_ACTIVATED) {
-              console.log('> altering girl icon src from:', element.outerHTML);
-            }
-            element.src = newSrc;
-            nbOfIconElementsProcessed++;
-          }
-        }
-      });
-      if (DEBUG_ACTIVATED) {
-        console.log('> nb of icon elements processed:', nbOfIconElementsProcessed);
-      }
-      if (nbOfIconElementsProcessed === 0) {
-        noIconElementsProcessedCount++;
-      }
-      if (
-        observer &&
-        batchedIconElements.length > 0 &&
-        startIndex === 0 &&
-        (observerGirlIconsProcessStarted ||
-          noIconElementsProcessedCount > noIconElementsProcessedDelay)
-      ) {
-        observerGirlIconsProcessEnded = true;
-      }
-      if (
-        observer &&
-        batchedIconElements.length > 0 &&
-        startIndex === 0 &&
-        (nbOfIconElementsProcessed > 0 ||
-          noIconElementsProcessedCount > noIconElementsProcessedDelay)
-      ) {
-        if (DEBUG_ACTIVATED) {
-          console.log('> OBSERVER GIRL ICONS TRUE');
-        }
-        observerGirlIconsProcessStarted = true;
-      }
-    }, 0);
-  }
-
-  if (
-    observerGirlIconsProcessEnded &&
-    observerGirlImagesProcessed &&
-    observerGirlAvatarsImagesProcessed
-  ) {
-    if (killObserverCount < killObserverDelay) {
-      killObserverCount++;
-      resetObserverState();
-    } else {
-      killObserver();
-    }
   }
 }
 
@@ -2476,6 +2257,7 @@ function modifyMedias() {
 }
 
 hideMedias();
+modifyMedias();
 
 // DOM is ready, resources may still be loading
 document.addEventListener('DOMContentLoaded', function () {
@@ -2484,7 +2266,6 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('> DOMContentLoaded');
   }
   hideMediasTemporarily();
-  initObserver();
 });
 
 // Add event listener for clicks
@@ -2503,23 +2284,5 @@ document.addEventListener('click', function (event) {
     if (window.location.href.includes('/quest/')) {
       processImagesToShowAgain(questSelectorsOfImagesToHide);
     }
-  } else {
-    // initObserver();
-    modifyMedias();
   }
 });
-
-// TODO replace killObserver with resetObserver
-// TODO implement count of img processed and compare it with the total number of images (if < then process imgs)
-// // Add event listener for scrolling on desktop
-// document.addEventListener('wheel', function (event) {
-//   killObserver();
-//   initObserver();
-// });
-//
-// // Add event listener for scrolling on mobile
-// document.addEventListener('touchmove', function (event) {
-//   killObserver();
-//   initObserver();
-// });
-
