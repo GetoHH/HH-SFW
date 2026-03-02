@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      3.1.1
+// @version      3.2.0
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,7 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
-// 3.1.1: Remove unnecessary spreads
+// 3.2.0: Optimize and mutualize code, fix bugs (empty selector crash, dead ternary, QUEST TypeError, unused constant)
 // 3.1.0: Refactor code to mutualize page lists
 // 3.0.0: Remove girl img src modifications and observer due to girl media url changes that no longer allow the process
 // 2.2.0: Add waifu page support
@@ -64,25 +64,28 @@
 let DEBUG_ACTIVATED = false;
 const DEBUG_LIMIT_ACTIVATED = false;
 
-const HIDE_BACKGROUND = false;
-const HIDE_GIRL_AVATARS = true;
+const HIDE_BACKGROUND    = false;
+const HIDE_GIRL_AVATARS  = true;
 const HIDE_PLAYER_AVATARS = true;
 const REPLACE_BACKGROUND = true;
 
 /**
  * VARIABLES
  */
-let debugHideLimitCount = 0;
-let debugHideTemporarilyLimitCount = 0;
+let debugLimitCount = 0;
 
 /**
  * CONSTANTS
  */
-const DEFAULT_BACKGROUND_URL =
-  'https://hh2.hh-content.com/pictures/gallery/6/2200x/9c04e3d2df8d992146eea132225d2d54.jpg';
-
-const NEW_BACKGROUNG_URL =
+const NEW_BACKGROUND_URL =
   'https://hh2.hh-content.com/pictures/gallery/6/2200x/401-a8339a2168753900db437d91f2ed39ff.jpg';
+
+// Pre-evaluated once — avoids repeating the same conditional spread across every page entry
+const PLAYER_AVATAR_SELECTORS = HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : [];
+const BACKGROUND_SELECTORS    = HIDE_BACKGROUND     ? ['.fixed_scaled > img']           : [];
+
+// Default values object — used as fallback for pages that don't define custom values
+const DEFAULT_VALUES = { cssToModify : [], imagesSrcToReplace : [] };
 
 const PAGE_LIST = [
   {
@@ -100,7 +103,7 @@ const PAGE_LIST = [
         ...((REPLACE_BACKGROUND && !HIDE_BACKGROUND) ? ['.fixed_scaled > img'] : []),
       ],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
         '.intro > .quest-container > #scene > .canvas > .picture',
         '.background_image-style > img',
         '#no_energy_popup > .avatar',
@@ -114,7 +117,7 @@ const PAGE_LIST = [
     },
     values : {
       cssToModify : [],
-      imagesSrcToReplace : NEW_BACKGROUNG_URL,
+      imagesSrcToReplace : NEW_BACKGROUND_URL,
     },
   },
   {
@@ -125,8 +128,8 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.mission_image > img',
         '.pop_thumb > img',
         '.pop-details-left > img',
@@ -135,10 +138,6 @@ const PAGE_LIST = [
         '.timer-girl-container > img',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -149,14 +148,10 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -173,8 +168,8 @@ const PAGE_LIST = [
       ],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.champions-animation > .avatar',
         '.champions-animation > .champions-over__champion-image',
         '.defender-preview > img',
@@ -210,10 +205,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'CLUB CHAMPION',
@@ -223,8 +214,8 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.figure',
         '.girl-fav-position > .favorite-position',
         '.girl-card > .fav-position',
@@ -233,10 +224,6 @@ const PAGE_LIST = [
         ] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -251,10 +238,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'EDIT TEAM',
@@ -267,10 +250,6 @@ const PAGE_LIST = [
         ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -285,10 +264,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'EVENT',
@@ -298,18 +273,14 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.sm-static-girl > img',
         '.lse_puzzle_wrapper > .lively_scene_image',
         '.lively_scenes_preview > div > img',
         ...(HIDE_GIRL_AVATARS ? ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -320,15 +291,12 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_GIRL_AVATARS ? ['.team-slot-container > img',
+        ...(HIDE_GIRL_AVATARS ? [
+          '.team-slot-container > img',
           '.awakening-container > .avatar',
         ] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -343,10 +311,6 @@ const PAGE_LIST = [
         '.container-category > .feature-bgr',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -363,8 +327,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : ['.fixed_scaled > img'],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.waifu-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.info-top-block > .bunny-rotate-device',
         '.pwa-info-container > .install_app_girl',
       ],
@@ -372,7 +336,7 @@ const PAGE_LIST = [
     },
     values : {
       cssToModify : [],
-      imagesSrcToReplace : [NEW_BACKGROUNG_URL],
+      imagesSrcToReplace : [NEW_BACKGROUND_URL],
     },
   },
   {
@@ -390,10 +354,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'LABYRINTH BATTLE',
@@ -410,10 +370,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'LABYRINTH ENTRANCE',
@@ -427,10 +383,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'LABYRINTH POOL SELECT',
@@ -440,14 +392,10 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -462,10 +410,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'LEAGUES',
@@ -477,14 +421,10 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
         ...(HIDE_PLAYER_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...BACKGROUND_SELECTORS,
         '.tier_icons > img',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -496,14 +436,10 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -515,14 +451,10 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -539,14 +471,10 @@ const PAGE_LIST = [
           '.right-girl-container > .avatar',
           '.right-girl-container > .girl-img',
         ] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -559,10 +487,6 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : ['.page-girl > img'],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'PACHINKO',
@@ -572,15 +496,11 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.pachinko_img > img',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -592,15 +512,11 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
         '.pantheon_bgr > .stage-bgr',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -612,14 +528,10 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -634,10 +546,6 @@ const PAGE_LIST = [
         '.player-profile-picture > img',
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -655,10 +563,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'PATH OF VALOR',
@@ -675,10 +579,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'PENTA DRILL',
@@ -691,10 +591,6 @@ const PAGE_LIST = [
         ...(HIDE_GIRL_AVATARS ? ['.girl_block > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -709,10 +605,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'PENTA DRILL BATTLE',
@@ -725,10 +617,6 @@ const PAGE_LIST = [
         ...(HIDE_GIRL_AVATARS ? ['.pvp-girls > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -743,10 +631,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'QUEST',
@@ -757,7 +641,7 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : ['.canvas > .picture'],
-    }
+    },
   },
   {
     name : 'SEASON',
@@ -771,10 +655,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'SEASON ARENA',
@@ -784,14 +664,10 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -803,14 +679,10 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -826,10 +698,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'SIDE QUESTS',
@@ -840,10 +708,6 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : ['.side-quest-image > img'],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -856,10 +720,6 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : ['.girl-image-container > img'],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'TROLL BATTLE',
@@ -870,14 +730,10 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -888,14 +744,10 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ...PLAYER_AVATAR_SELECTORS,
+        ...BACKGROUND_SELECTORS,
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -909,10 +761,6 @@ const PAGE_LIST = [
         ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -928,10 +776,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'WORLD BOSS BATTLE',
@@ -944,10 +788,6 @@ const PAGE_LIST = [
         ...(HIDE_GIRL_AVATARS ? ['.pvp-girls > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
-    },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
     },
   },
   {
@@ -965,10 +805,6 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'WORLD BOSS PRE-BATTLE',
@@ -980,68 +816,49 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
 ];
 
+/**
+ * Injects a CSS rule hiding all matched selectors via the given CSS property.
+ * Unified helper for both display:none and background-image:none cases.
+ */
+function injectCssHideRule(selectorsArray, cssProperty) {
+  if (selectorsArray.length === 0) return;
+  if (DEBUG_ACTIVATED) {
+    console.log(`> INJECTING CSS HIDE RULE: ${cssProperty}`);
+  }
+  const style = document.createElement('style');
+  style.textContent = `${selectorsArray.join(', ')} { ${cssProperty}: none !important; }\n`;
+  document.head.prepend(style);
+}
+
+/**
+ * Injects arbitrary CSS rules onto the given selectors.
+ */
 function modifyCssOfSelectors(selectorsArray, styleRules) {
+  if (selectorsArray.length === 0) return;
   if (DEBUG_ACTIVATED) {
     console.log('> PROCESSING MODIFY CSS OF SELECTORS');
   }
-
-  const selectors = selectorsArray.join(', ');
-  const displayNoneRule = `${selectors} { ${styleRules.join(' !important; ')} !important; }\n`;
-
   const style = document.createElement('style');
-  style.textContent = style.textContent
-    ? style.textContent + `${displayNoneRule}`
-    : displayNoneRule;
+  style.textContent = `${selectorsArray.join(', ')} { ${styleRules.join(' !important; ')} !important; }\n`;
   document.head.prepend(style);
 }
 
-function processBackgroundImagesSrcToHidePermanently(selectorsArray) {
-  if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING BACKGROUND IMAGES SRC TO HIDE PERMANENTLY');
-  }
-
-  const selectors = selectorsArray.join(', ');
-  const displayNoneRule = `${selectors} { background-image: none !important; }\n`;
-
-  const style = document.createElement('style');
-  style.textContent = style.textContent
-    ? style.textContent + `${displayNoneRule}`
-    : displayNoneRule;
-  document.head.prepend(style);
-}
-
-function processImagesSrcToHidePermanently(selectorsArray) {
-  if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING IMAGES SRC TO HIDE PERMANENTLY');
-  }
-
-  const selectors = selectorsArray.join(', ');
-  const displayNoneRule = `${selectors} { display: none !important; }\n`;
-
-  const style = document.createElement('style');
-  style.textContent = style.textContent
-    ? style.textContent + `${displayNoneRule}`
-    : displayNoneRule;
-  document.head.prepend(style);
-}
-
+/**
+ * Replaces the src of all matched elements with newSrc.
+ */
 function processImagesSrcToReplace(selectorsArray, newSrc) {
+  if (selectorsArray.length === 0 || !newSrc) return;
   if (DEBUG_ACTIVATED) {
     console.log('> PROCESSING IMAGES SRC TO REPLACE');
   }
-  const elements =
-    selectorsArray.length > 0 ? document.querySelectorAll(selectorsArray.join(', ')) : [];
-  let nbOfElementsProcessed = 0;
-  if (DEBUG_ACTIVATED && elements.length > 0) {
+  const elements = document.querySelectorAll(selectorsArray.join(', '));
+  if (DEBUG_ACTIVATED) {
     console.log('> nb of elements:', elements.length);
   }
+  let nbOfElementsProcessed = 0;
   elements.forEach((element) => {
     if (element && element.src) {
       element.src = newSrc;
@@ -1053,20 +870,24 @@ function processImagesSrcToReplace(selectorsArray, newSrc) {
   }
 }
 
-function processImagesToHideTemporarily(selectorsArray) {
+/**
+ * Sets display style directly on matched elements.
+ * Used for temporarily hiding (none) or showing again (block) elements.
+ */
+function setElementsDisplay(selectorsArray, displayValue) {
+  if (selectorsArray.length === 0) return;
   if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING IMAGES TO HIDE TEMPORARILY');
+    console.log(`> SETTING ELEMENTS DISPLAY: ${displayValue}`);
   }
   //TODO improve with style
-  const elements =
-    selectorsArray.length > 0 ? document.querySelectorAll(selectorsArray.join(', ')) : [];
-  let nbOfElementsProcessed = 0;
-  if (DEBUG_ACTIVATED && elements.length > 0) {
+  const elements = document.querySelectorAll(selectorsArray.join(', '));
+  if (DEBUG_ACTIVATED) {
     console.log('> nb of elements:', elements.length);
   }
+  let nbOfElementsProcessed = 0;
   elements.forEach((element) => {
     if (element) {
-      element.style.display = 'none';
+      element.style.display = displayValue;
       nbOfElementsProcessed++;
     }
   });
@@ -1075,81 +896,54 @@ function processImagesToHideTemporarily(selectorsArray) {
   }
 }
 
-function processImagesToShowAgain(selectorsArray) {
-  if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING IMAGES TO SHOW AGAIN');
-  }
-  //TODO improve with style
-  const elements =
-    selectorsArray.length > 0 ? document.querySelectorAll(selectorsArray.join(', ')) : [];
-  let nbOfElementsProcessed = 0;
-  if (DEBUG_ACTIVATED && elements.length > 0) {
-    console.log('> nb of elements:', elements.length);
-  }
-  elements.forEach((element) => {
-    if (element && element.style) {
-      element.style.display = 'block';
-      nbOfElementsProcessed++;
-    }
-  });
-  if (DEBUG_ACTIVATED) {
-    console.log('> nb of elements processed:', nbOfElementsProcessed);
+/**
+ * Increments the debug limit counter and disables debug logging once threshold is reached.
+ */
+function checkDebugLimit() {
+  if (!DEBUG_LIMIT_ACTIVATED) return;
+  debugLimitCount++;
+  if (debugLimitCount > 3) {
+    DEBUG_ACTIVATED = false;
   }
 }
 
-function runProcessesOnDOMContentLoaded() {
-  if (DEBUG_LIMIT_ACTIVATED) {
-    debugHideTemporarilyLimitCount++;
-    if (debugHideTemporarilyLimitCount > 3) {
-      DEBUG_ACTIVATED = false;
-    }
-  }
+/**
+ * Unified page processing loop — runs all selectors for the current page.
+ * Safe to call before DOMContentLoaded (CSS injection) and again after (DOM manipulation).
+ */
+function runAllProcesses() {
+  checkDebugLimit();
 
-  PAGE_LIST.forEach(({name, selectors : {imagesToHideTemporarily}, slug}) => {
+  PAGE_LIST.forEach(({ name, slug, selectors, values }) => {
     if (DEBUG_ACTIVATED) {
       console.log(' ');
       console.log(`> ${name} PAGE${name === 'ALL' ? 'S' : ''}`);
     }
 
-    if (!slug || window.location.href.includes(slug)) {
-      processImagesToHideTemporarily(imagesToHideTemporarily);
-    }
-  })
-}
-
-function runProcessesOnPageLoad() {
-  if (DEBUG_LIMIT_ACTIVATED) {
-    debugHideLimitCount++;
-    if (debugHideLimitCount > 3) {
-      DEBUG_ACTIVATED = false;
-    }
-  }
-
-  PAGE_LIST.forEach(({
-                       name,
-                       selectors : {
-                         backgroundImagesSrcToHidePermanently,
-                         cssToModify,
-                         imagesSrcToHidePermanently,
-                         imagesSrcToReplace
-                       },
-                       slug,
-                       values
-                     }) => {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log(`> ${name} PAGE${name === 'ALL' ? 'S' : ''}`);
+    if (slug && !window.location.href.includes(slug)) {
+      return;
     }
 
-    if (!slug || window.location.href.includes(slug)) {
-      processBackgroundImagesSrcToHidePermanently(backgroundImagesSrcToHidePermanently);
-      processImagesSrcToHidePermanently(imagesSrcToHidePermanently);
-      processImagesSrcToReplace(imagesSrcToReplace, values.imagesSrcToReplace);
+    const {
+      backgroundImagesSrcToHidePermanently,
+      cssToModify,
+      imagesSrcToHidePermanently,
+      imagesSrcToReplace,
+      imagesToHideTemporarily,
+    } = selectors;
 
-      for (let i = 0; i < cssToModify.length; i++) {
-        modifyCssOfSelectors(cssToModify[i], values.cssToModify[i]);
-      }
-    }
+    const resolvedValues = values ?? DEFAULT_VALUES;
+
+    // CSS injection — safe before DOMContentLoaded
+    injectCssHideRule(backgroundImagesSrcToHidePermanently, 'background-image');
+    injectCssHideRule(imagesSrcToHidePermanently, 'display');
+    cssToModify.forEach((selectorGroup, i) => {
+      modifyCssOfSelectors(selectorGroup, resolvedValues.cssToModify[i]);
+    });
+
+    // DOM manipulation — requires elements to exist (called again after DOMContentLoaded)
+    processImagesSrcToReplace(imagesSrcToReplace, resolvedValues.imagesSrcToReplace);
+    setElementsDisplay(imagesToHideTemporarily, 'none');
   });
 }
 
@@ -1167,18 +961,20 @@ document.addEventListener('click', function (event) {
       console.log('> SPECIAL BUTTON CLICKED (IMG PROCESSING STOPPED)');
     }
     if (window.location.href.includes('/quest/')) {
-      processImagesToShowAgain(['.canvas > .picture']);
+      setElementsDisplay(['.canvas > .picture'], 'block');
     }
   }
 });
 
-// DOM is ready, resources may still be loading
+// DOM is ready, resources may still be loading.
+// Run again so that processImagesSrcToReplace and setElementsDisplay can find DOM elements.
 document.addEventListener('DOMContentLoaded', function () {
   if (DEBUG_ACTIVATED) {
     console.log('> ');
     console.log('> DOMContentLoaded');
   }
-  runProcessesOnDOMContentLoaded();
+  runAllProcesses();
 });
 
-runProcessesOnPageLoad();
+// Run immediately at script start for CSS injection (works before DOM is ready)
+runAllProcesses();
