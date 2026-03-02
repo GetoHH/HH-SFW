@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      3.0.0
+// @version      3.1.0
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.1.0: Refactor code to mutualize page lists
 // 3.0.0: Remove girl img src modifications and observer due to girl media url changes that no longer allow the process
 // 2.2.0: Add waifu page support
 // 2.1.6: Fix event selectors
@@ -56,472 +57,972 @@
 // 0.1.0: First available version on SleazyFork
 // ==/CHANGELOG==
 
+/**
+ * CONFIGURATION
+ */
 let DEBUG_ACTIVATED = false;
 const DEBUG_LIMIT_ACTIVATED = false;
-
-let debugHideLimitCount = 0;
-let debugHideTemporarilyLimitCount = 0;
-let debugModifyLimitCount = 0;
-
-let foundMatchingUrl = false;
-
-const DEFAULT_BACKGROUND_URL =
-  'https://hh2.hh-content.com/pictures/gallery/6/2200x/9c04e3d2df8d992146eea132225d2d54.jpg';
-const NEW_BACKGROUNG_URL =
-  'https://hh2.hh-content.com/pictures/gallery/6/2200x/401-a8339a2168753900db437d91f2ed39ff.jpg';
 
 const HIDE_BACKGROUND = false;
 const HIDE_GIRL_AVATARS = true;
 const HIDE_PLAYER_AVATARS = true;
 const REPLACE_BACKGROUND = true;
 
-// Activities screen https://www.hentaiheroes.com/activities.html
-const activitiesSelectorsOfBackgroundImagesSrcToRemove = ['.contest > .contest_header'];
-const activitiesSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.mission_image > img',
-  '.pop_thumb > img',
-  '.pop-details-left > img',
-  '.pop_girl_avatar > img',
-  '.pop-record > .pop-record-bg',
-  '.timer-girl-container > img',
+/**
+ * VARIABLES
+ */
+let debugHideLimitCount = 0;
+let debugHideTemporarilyLimitCount = 0;
+
+/**
+ * CONSTANTS
+ */
+const DEFAULT_BACKGROUND_URL =
+  'https://hh2.hh-content.com/pictures/gallery/6/2200x/9c04e3d2df8d992146eea132225d2d54.jpg';
+
+const NEW_BACKGROUNG_URL =
+  'https://hh2.hh-content.com/pictures/gallery/6/2200x/401-a8339a2168753900db437d91f2ed39ff.jpg';
+
+const PAGE_LIST = [
+  {
+    name : 'ALL',
+    slug : '',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [
+        '.bundle > #special-offer',
+        '.bundle > #starter-offer',
+        '.mc-card-container > .rewards-container',
+        '.product-offer-container > .product-offer-background-container',
+      ],
+      cssToModify : [],
+      imagesSrcToReplace : [
+        ...((REPLACE_BACKGROUND && !HIDE_BACKGROUND) ? ['.fixed_scaled > img'] : []),
+      ],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...[
+          '.intro > .quest-container > #scene > .canvas > .picture',
+          '.background_image-style > img',
+        ], // Login pop-up (no precise url as it can appear on any page)
+        ...['#no_energy_popup > .avatar'], // No enegery pop-up (no precise url as it can be opened with the plus icon on any page),
+        ...[
+          '.info-top-block > .bunny-rotate-device',
+          '.container > .avatar',
+          '.prestige > .avatar',
+          '#special-offer > .background-video',
+          '.pwa-info-container > .install_app_girl',
+        ], // Shop pop-up (no precise url as it can be opened with the chest icon on the homepage or the plus icon on any page)
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : NEW_BACKGROUNG_URL,
+    },
+  },
+  {
+    name : 'ACTIVITIES',
+    slug : '/activities.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : ['.contest > .contest_header'],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.mission_image > img',
+        '.pop_thumb > img',
+        '.pop-details-left > img',
+        '.pop_girl_avatar > img',
+        '.pop-record > .pop-record-bg',
+        '.timer-girl-container > img',
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'ADVENTURES',
+    slug : '/adventures.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : ['.adventure-card-container'],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'CHAMPIONS',
+    slug : '/champions/',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [
+        ['.girl-information'],
+        ['.nc-event-reward-info'],
+        ['.champions-over__champion-rewards-outline'],
+        ['.champions-over__champion-wrapper > .champions-over__champion-info'],
+        ['.champions-over__champion-tier-link'],
+      ],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.champions-animation > .avatar',
+        '.champions-animation > .champions-over__champion-image',
+        '.defender-preview > img',
+        '.attacker-preview > .character',
+        '.rounds-info__figures > .figure',
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [
+        ['display: flex', 'position: relative', 'left: 200px', 'top: 0px'],
+        ['top: 0px', 'left: 100px'],
+        ['display: flex', 'position: absolute', 'left: -250px', 'top: 50px', 'width: 100%'],
+        ['display: flex', 'position: relative', 'left: -250px', 'top: 100px'],
+        ['display: inline-flex', 'width: 2.5rem', 'height: 2.5rem'],
+      ],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'CHARACTERS',
+    slug : '/characters/',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.avatar-box > .avatar',
+          '.awakening-container > .avatar',
+        ] : []),
+        ...['.lively_scene > img'],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'CLUB CHAMPION',
+    slug : '/club-champion.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+          '.figure',
+          '.girl-fav-position > .favorite-position',
+          '.girl-card > .fav-position',
+        ],
+        ...(HIDE_GIRL_AVATARS ? [
+          '.champions-over__champion-wrapper > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'EDIT LABYRINTH TEAM',
+    slug : '/edit-labyrinth-team.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'EDIT TEAM',
+    slug : '/edit-team.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'EDIT WORLD BOSS TEAM',
+    slug : '/edit-world-boss-team.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'EVENT',
+    slug : '/event.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+          '.sm-static-girl > img',
+          '.lse_puzzle_wrapper > .lively_scene_image',
+          '.lively_scenes_preview > div > img',
+        ],
+        ...(HIDE_GIRL_AVATARS ? ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'GIRL',
+    slug : '/girl/',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.team-slot-container > img',
+          '.awakening-container > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'GOD PATH',
+    slug : '/god-path.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.feature-girl > .avatar'] : []),
+        ...['.container-category > .feature-bgr']
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'HOME',
+    slug : '/home.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [
+        '#crosspromo_show_ad > .crosspromo_banner',
+        '#special-offer',
+        '.news_page_content > .news_page_pic',
+        '.news_thumb > .news_thumb_pic',
+      ],
+      cssToModify : [],
+      imagesSrcToReplace : ['.fixed_scaled > img'],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.waifu-container > .avatar',] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+          '.info-top-block > .bunny-rotate-device',
+          '.pwa-info-container > .install_app_girl',
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [NEW_BACKGROUNG_URL],
+    },
+  },
+  {
+    name : 'LABYRINTH',
+    slug : '/labyrinth.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.shop-labyrinth-girl > .avatar',
+          '.labyrinth-girl > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LABYRINTH BATTLE',
+    slug : '/labyrinth-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.pvp-girls > .avatar',
+          '.labyrinth-girl > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LABYRINTH ENTRANCE',
+    slug : '/labyrinth-entrance.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LABYRINTH POOL SELECT',
+    slug : '/labyrinth-pool-select.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LABYRINTH PRE-BATTLE',
+    slug : '/labyrinth-pre-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LEAGUES',
+    slug : '/leagues.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+          '.tier_icons > img',
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LEAGUE BATTLE',
+    slug : '/league-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LEAGUE PRE-BATTLE',
+    slug : '/league-pre-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'LOVE RAIDS',
+    slug : '/love-raids.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.left-girl-container > .avatar',
+          '.left-girl-container > .girl-img',
+          '.right-girl-container > .avatar',
+          '.right-girl-container > .girl-img',
+        ] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'MEMBER PROGRESSION',
+    slug : '/member-progression.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : ['.page-girl > img'],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PACHINKO',
+    slug : '/pachinko.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.pachinko_img > img',
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PANTHEON',
+    slug : '/pantheon.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-container > .avatar'] : []),
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.pantheon_bgr > .stage-bgr',
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PANTHEON BATTLE',
+    slug : '/pantheon-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PANTHEON PRE-BATTLE',
+    slug : '/pantheon-pre-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        '.fixed_scaled > img',
+        '.player-profile-picture > img',
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PATH OF GLORY',
+    slug : '/path-of-glory.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.left_side > .avatar',
+          '.right_side > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PATH OF VALOR',
+    slug : '/path-of-valor.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.left_side > .avatar',
+          '.right_side > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PENTA DRILL',
+    slug : '/penta-drill.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl_block > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PENTA DRILL ARENA',
+    slug : '/penta-drill-arena.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl_block > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PENTA DRILL BATTLE',
+    slug : '/penta-drill-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.pvp-girls > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'PVP ARENA',
+    slug : '/pvp-arena.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.feature-girl > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'QUEST',
+    slug : '/quest/',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [],
+      imagesToHideTemporarily : ['.canvas > .picture'],
+    }
+  },
+  {
+    name : 'SEASON',
+    slug : '/season.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl_block > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'SEASON ARENA',
+    slug : '/season-arena.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'SEASON BATTLE',
+    slug : '/season-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'SEASONAL',
+    slug : '/seasonal.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girls-reward-container > .avatar'] : []),
+        ...['.lively_scene > img'],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'SIDE QUESTS',
+    slug : '/side-quests.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : ['.side-quest-image > img'],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'TEAMS',
+    slug : '/teams.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : ['.girl-image-container > img'],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'TROLL BATTLE',
+    slug : '/troll-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
+        ...[
+          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        ],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'TROLL PRE-BATTLE',
+    slug : '/troll-pre-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'WAIFU',
+    slug : '/waifu.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl-display > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'WORLD',
+    slug : '/world/',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.girl_world > .avatar'] : []),
+        ...['.troll_world > .troll-tier-img'],
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'WORLD BOSS BATTLE',
+    slug : '/world-boss-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? ['.pvp-girls > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'WORLD BOSS EVENT',
+    slug : '/world-boss-event',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ?  [
+          '.left-container > .avatar',
+          '.right-container > .avatar',
+        ] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
+  {
+    name : 'WORLD BOSS PRE-BATTLE',
+    slug : '/world-boss-pre-battle',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [],
+      imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [],
+      imagesSrcToReplace : [],
+    },
+  },
 ];
-const activitiesSelectorsOfGirlsSrcToModify = [];
-const activitiesSelectorsOfGirlsAvatarsSrcToModify = [];
-const activitiesSelectorsOfGirlsNumerousIconsSrcToModify = [];
 
-// Adventures screen https://www.hentaiheroes.com/adventures.html
-const adventuresSelectorsOfBackgroundImagesSrcToRemove = ['.adventure-card-container'];
-const adventuresSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-const adventuresSelectorsOfGirlsSrcToModify = [];
-const adventuresSelectorsOfGirlsAvatarsSrcToModify = [];
-const adventuresSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Champions screen https://www.hentaiheroes.com/champions/3
-const championsSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.champions-animation > .avatar',
-  '.champions-animation > .champions-over__champion-image',
-  '.defender-preview > img',
-  '.attacker-preview > .character',
-  '.rounds-info__figures > .figure',
-];
-const championSelectorsOfGirlsSrcToModify = [
-  '.girl-box__draggable > .girl-box__ico',
-  '.girl > .avatar',
-  '.girl-card > img',
-];
-const championSelectorsOfGirlsAvatarsSrcToModify = [];
-const championSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Characters screen https://www.hentaiheroes.com/characters/461620826
-const charactersSelectorsOfGirlsSrcToModify = [
-  '.team-slot-container > img',
-  '.variation_girl > .girl_ava',
-];
-const charactersSelectorsOfGirlsAvatarsSrcToModify = [
-  '.avatar-box > .avatar',
-  '.awakening-container > .avatar',
-];
-const charactersSelectorsOfGirlsNumerousIconsSrcToModify = ['.left > img'];
-const charactersSelectorsOfImagesSrcToRemove = ['.lively_scene > img'];
-
-// Club champion screen https://www.hentaiheroes.com/club-champion.html
-const clubChampionSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.figure',
-  '.girl-fav-position > .favorite-position',
-  '.girl-card > .fav-position',
-];
-const clubChampionSelectorsOfGirlsSrcToModify = [
-  '.girl-box__draggable > .girl-box__ico',
-  '.girl > .avatar',
-  '.girl-card > img',
-];
-const clubChampionSelectorsOfGirlsAvatarsSrcToModify = [
-  '.champions-over__champion-wrapper > .avatar',
-];
-const clubChampionSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Edit Labyrinth team screen https://www.hentaiheroes.com/edit-labyrinth-team.html
-const editLabyrinthTeamSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const editLabyrinthTeamSelectorsOfGirlsAvatarsSrcToModify = ['.girl-display > .avatar'];
-const editLabyrinthTeamSelectorsOfGirlsNumerousIconsSrcToModify = [
-  '.harem-girl-container > .girl_img', // all girls => 282 for me
-];
-
-// Edit team screen https://www.hentaiheroes.com/edit-team.html
-const editTeamSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const editTeamSelectorsOfGirlsAvatarsSrcToModify = ['.girl-display > .avatar'];
-const editTeamSelectorsOfGirlsNumerousIconsSrcToModify = ['.harem-girl-container > .girl_img'];
-
-// Edit world boss team screen https://www.hentaiheroes.com/edit-world-boss-team.html
-const editWorldBossTeamSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const editWorldBossTeamSelectorsOfGirlsAvatarsSrcToModify = ['.girl-display > .avatar'];
-const editWorldBossTeamSelectorsOfGirlsNumerousIconsSrcToModify = [
-  '.harem-girl-container > .girl_img',
-];
-
-// Event pop-up https://www.hentaiheroes.com/event.html?tab=sm_event_36
-const eventSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.sm-static-girl > img',
-  '.lse_puzzle_wrapper > .lively_scene_image',
-  '.lively_scenes_preview > div > img',
-];
-const eventSelectorsOfGirlsSrcToModify = [];
-const eventSelectorsOfGirlsAvatarsSrcToModify = ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'];
-const eventSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Girl screen https://www.hentaiheroes.com/girl/143960742
-const girlSelectorsOfGirlsSrcToModify = [
-  '.base-hexagon > .girl_img',
-  '.girl-skills-avatar > .avatar',
-  '.girl-avatar-wrapper > .avatar',
-  '#next_girl > .avatar',
-  '.next > .avatar',
-  '.next > img',
-  '#previous_girl > .avatar',
-  '.prev > img',
-  '.prev > .avatar'
-];
-const girlSelectorsOfGirlsAvatarsSrcToModify = ['.team-slot-container > img',
-  '.awakening-container > .avatar',
-];
-const girlSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// God path screen https://www.hentaiheroes.com/god-path.html
-const godPathSelectorsOfGirlsSrcToModify = [];
-const godPathSelectorsOfGirlsAvatarsSrcToModify = ['.feature-girl > .avatar'];
-const godPathSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const godPathSelectorsOfImagesSrcToRemove = ['.container-category > .feature-bgr'];
-
-// Home screen https://www.hentaiheroes.com/home.html
-const homeSelectorsOfBackgroundImagesSrcToRemove = [
-  '#crosspromo_show_ad > .crosspromo_banner',
-  '#special-offer',
-  '.news_page_content > .news_page_pic',
-  '.news_thumb > .news_thumb_pic',
-];
-const homeSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.waifu-container > .avatar',
-  '.info-top-block > .bunny-rotate-device',
-  '.pwa-info-container > .install_app_girl',
-];
-const homeSelectorsOfImagesSrcToReplace = ['.fixed_scaled > img'];
-const homeSelectorsOfGirlsSrcToModify = [];
-const homeSelectorsOfGirlsAvatarsSrcToModify = [];
-const homeSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Labyrinth screen https://www.hentaiheroes.com/labyrinth.html
-const labyrinthSelectorsOfGirlsSrcToModify = ['.relic-infos > .girl-image'];
-const labyrinthSelectorsOfGirlsAvatarsSrcToModify = [
-  '.shop-labyrinth-girl > .avatar',
-  '.labyrinth-girl > .avatar',
-];
-const labyrinthSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Labyrinth battle screen https://www.hentaiheroes.com/labyrinth-battle.html
-const labyrinthBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const labyrinthBattleSelectorsOfGirlsAvatarsSrcToModify = [
-  '.pvp-girls > .avatar',
-  '.labyrinth-girl > .avatar',
-];
-const labyrinthBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Labyrinth entrance screen https://www.hentaiheroes.com/labyrinth-entrance.html
-const labyrinthEntranceSelectorsOfImagesSrcToRemove = [];
-const labyrinthEntranceSelectorsOfGirlsSrcToModify = [];
-const labyrinthEntranceSelectorsOfGirlsAvatarsSrcToModify = ['.labyrinth-girl > .avatar'];
-const labyrinthEntranceSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Labyrinth pool select screen https://www.hentaiheroes.com/labyrinth-pool-select.html
-const labyrinthPoolSelectSelectorsOfGirlsSrcToModify = [];
-const labyrinthPoolSelectSelectorsOfGirlsAvatarsSrcToModify = [];
-const labyrinthPoolSelectSelectorsOfGirlsNumerousIconsSrcToModify = [
-  '.girl-container > .girl-image',
-];
-const labyrinthPoolSelectSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Labyrinth pre-battle screen https://www.hentaiheroes.com/labyrinth-pre-battle.html
-const labyrinthPreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const labyrinthPreBattleSelectorsOfGirlsAvatarsSrcToModify = ['.labyrinth-girl > .avatar'];
-const labyrinthPreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Leagues screen https://www.hentaiheroes.com/leagues.html
-const leaguesSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const leaguesSelectorsOfGirlsAvatarsSrcToModify = ['.girl-block > .avatar'];
-const leaguesSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const leaguesSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.tier_icons > img',
-];
-
-// League pre-battle screen https://www.hentaiheroes.com/leagues-pre-battle.html
-const leaguePreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const leaguePreBattleSelectorsOfGirlsAvatarsSrcToModify = ['.girl-block > .avatar'];
-const leaguePreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const leaguePreBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// League battle screen https://www.hentaiheroes.com/league-battle.html
-const leagueBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const leagueBattleSelectorsOfGirlsAvatarsSrcToModify = ['.new-battle-girl-container > .avatar'];
-const leagueBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const leagueBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Login pop-up (no precise url as it can appear on any page)
-const loginSelectorsOfImagesSrcToRemove = [
-  '.intro > .quest-container > #scene > .canvas > .picture',
-  '.background_image-style > img',
-];
-
-// Love raids screen https://www.hentaiheroes.com/love-raids.html
-const loveRaidsSelectorsOfGirlsSrcToModify = [];
-const loveRaidsSelectorsOfGirlsAvatarsSrcToModify = [
-  '.left-girl-container > .avatar',
-  '.left-girl-container > .girl-img',
-  '.right-girl-container > .avatar',
-  '.right-girl-container > .girl-img',
-];
-const loveRaidsSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const loveRaidsSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Member progression screen https://www.hentaiheroes.com/member-progression.html
-const memberProgressionSelectorsOfImagesSrcToRemove = ['.page-girl > img'];
-const memberProgressionSelectorsOfGirlsSrcToModify = [];
-const memberProgressionSelectorsOfGirlsAvatarsSrcToModify = [];
-const memberProgressionSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// No enegery pop-up (no precise url as it can be opened with the plus icon on any page)
-const noEnergySelectorsOfImagesSrcToRemove = ['#no_energy_popup > .avatar'];
-
-// Pachinko screen https://www.hentaiheroes.com/pachinko.html
-const pachinkoSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.pachinko_img > img',
-];
-const pachinkoSelectorsOfGirlsSrcToModify = [];
-const pachinkoSelectorsOfGirlsAvatarsSrcToModify = [];
-const pachinkoSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Pantheon screen https://www.hentaiheroes.com/pantheon.html
-const pantheonSelectorsOfGirlsSrcToModify = [];
-const pantheonSelectorsOfGirlsAvatarsSrcToModify = ['.girl-container > .avatar'];
-const pantheonSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pantheonSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-  '.girl-container > .avatar',
-  '.pantheon_bgr > .stage-bgr',
-];
-
-// Pantheon battle screen https://www.hentaiheroes.com/pantheon-battle.html
-const pantheonBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const pantheonBattleSelectorsOfGirlsAvatarsSrcToModify = ['.new-battle-girl-container > .avatar'];
-const pantheonBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pantheonBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Pantheon pre-battle screen https://www.hentaiheroes.com/pantheon-pre-battle.html
-const pantheonPreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const pantheonPreBattleSelectorsOfGirlsAvatarsSrcToModify = [];
-const pantheonPreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pantheonPreBattleSelectorsOfImagesSrcToRemove = [
-  '.fixed_scaled > img',
-  '.player-profile-picture > img',
-];
-
-// Path of glory screen https://www.hentaiheroes.com/path-of-glory.html
-const pathOfGlorySelectorsOfGirlsSrcToModify = [];
-const pathOfGlorySelectorsOfGirlsAvatarsSrcToModify = [
-  '.left_side > .avatar',
-  '.right_side > .avatar',
-];
-const pathOfGlorySelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pathOfGlorySelectorsOfImagesSrcToRemove = [];
-
-// Path of valor screen https://www.hentaiheroes.com/path-of-valor.html
-const pathOfValorSelectorsOfGirlsSrcToModify = [];
-const pathOfValorSelectorsOfGirlsAvatarsSrcToModify = [
-  '.left_side > .avatar',
-  '.right_side > .avatar',
-];
-const pathOfValorSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pathOfValorSelectorsOfImagesSrcToRemove = [];
-
-// Penta drill screen https://www.hentaiheroes.com/penta-drill.html
-const pentaDrillSelectorsOfGirlsSrcToModify = ['.slot_girl_shards > img'];
-const pentaDrillSelectorsOfGirlsAvatarsSrcToModify = ['.girl_block > .avatar'];
-const pentaDrillSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pentaDrillSelectorsOfImagesSrcToRemove = [];
-
-// Penta drill arena screen https://www.hentaiheroes.com/penta-drill-arena.html
-const pentaDrillArenaSelectorsOfGirlsSrcToModify = ['.slot_girl_shards > img'];
-const pentaDrillArenaSelectorsOfGirlsAvatarsSrcToModify = ['.girl_block > .avatar'];
-const pentaDrillArenaSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pentaDrillArenaSelectorsOfImagesSrcToRemove = [];
-
-// Penta drill arena screen https://www.hentaiheroes.com/penta-drill-battle.html
-const pentaDrillBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const pentaDrillBattleSelectorsOfGirlsAvatarsSrcToModify = ['.pvp-girls > .avatar'];
-const pentaDrillBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pentaDrillBattleSelectorsOfImagesSrcToRemove = [];
-
-// Pvp arena screen https://www.hentaiheroes.com/pvp-arena.html
-const pvpArenaSelectorsOfGirlsSrcToModify = [];
-const pvpArenaSelectorsOfGirlsAvatarsSrcToModify = ['.feature-girl > .avatar'];
-const pvpArenaSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const pvpArenaSelectorsOfImagesSrcToRemove = [];
-
-// Quest / Affection scene screen https://www.hentaiheroes.com/quest/1003697?grade=1
-const questSelectorsOfImagesToHide = ['.canvas > .picture'];
-
-// Seasonal screen https://www.hentaiheroes.com/season.html
-const seasonSelectorsOfGirlsSrcToModify = ['.slot_girl_shards > img'];
-const seasonSelectorsOfGirlsAvatarsSrcToModify = ['.girl_block > .avatar'];
-const seasonSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const seasonSelectorsOfImagesSrcToRemove = [];
-
-// Season arena screen https://www.hentaiheroes.com/season-arena.html
-const seasonArenaSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const seasonArenaSelectorsOfGirlsAvatarsSrcToModify = [];
-const seasonArenaSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const seasonArenaSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Season battle screen https://www.hentaiheroes.com/season-battle.html
-const seasonBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const seasonBattleSelectorsOfGirlsAvatarsSrcToModify = ['.new-battle-girl-container > .avatar'];
-const seasonBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const seasonBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Seasonal screen https://www.hentaiheroes.com/seasonal.html
-const seasonalSelectorsOfGirlsSrcToModify = ['.slot_girl_shards > img'];
-const seasonalSelectorsOfGirlsAvatarsSrcToModify = ['.girls-reward-container > .avatar'];
-const seasonalSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const seasonalSelectorsOfImagesSrcToRemove = ['.lively_scene > img'];
-
-// Shop pop-up (no precise url as it can be opened with the chest icon on the homepage or the plus icon on any page)
-const shopSelectorsOfImagesSrcToRemove = [
-  '.info-top-block > .bunny-rotate-device',
-  '.container > .avatar',
-  '.prestige > .avatar',
-  '#special-offer > .background-video',
-  '.pwa-info-container > .install_app_girl',
-];
-const shopSelectorsOfBackgroundImagesSrcToRemove = [
-  '.bundle > #special-offer',
-  '.bundle > #starter-offer',
-  '.mc-card-container > .rewards-container',
-  '.product-offer-container > .product-offer-background-container',
-];
-
-// Side quests screen https://www.hentaiheroes.com/side-quests.html
-const sideQuestsSelectorsOfImagesSrcToRemove = ['.side-quest-image > img'];
-const sideQuestsSelectorsOfGirlsSrcToModify = [];
-const sideQuestsSelectorsOfGirlsAvatarsSrcToModify = [];
-const sideQuestsSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Teams screen https://www.hentaiheroes.com/teams.html
-const teamsSelectorsOfGirlsSrcToModify = [
-  '.team-slot-container > img',
-  '.base-hexagon > .girl_img',
-];
-const teamsSelectorsOfGirlsAvatarsSrcToModify = [];
-const teamsSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const teamsSelectorsOfImagesSrcToRemove = ['.girl-image-container > img'];
-
-// Troll battle screen https://www.hentaiheroes.com/troll-battle.html
-const trollBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const trollBattleSelectorsOfGirlsAvatarsSrcToModify = ['.new-battle-girl-container > .avatar'];
-const trollBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const trollBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Troll pre-battle screen https://www.hentaiheroes.com/troll-pre-battle.html
-const trollPreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const trollPreBattleSelectorsOfGirlsAvatarsSrcToModify = [];
-const trollPreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-const trollPreBattleSelectorsOfImagesSrcToRemove = [
-  ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-  ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-];
-
-// Waifu screen https://www.hentaiheroes.com/waifu.html
-const waifuSelectorsOfImagesSrcToRemove = [];
-const waifuSelectorsOfGirlsSrcToModify = [];
-const waifuSelectorsOfGirlsAvatarsSrcToModify = ['.girl-display > .avatar'];
-const waifuSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// Main quest troll screens https://www.hentaiheroes.com/world/12
-const worldSelectorsOfImagesSrcToRemove = ['.troll_world > .troll-tier-img'];
-const worldSelectorsOfGirlsSrcToModify = [];
-const worldSelectorsOfGirlsAvatarsSrcToModify = ['.girl_world > .avatar'];
-const worldSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// World boss battle screen https://www.hentaiheroes.com/world-boss-battle.html
-const worldBossBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const worldBossBattleSelectorsOfGirlsAvatarsSrcToModify = ['.pvp-girls > .avatar'];
-const worldBossBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// World boss event screen https://www.hentaiheroes.com/world-boss-event
-const worldBossEventSelectorsOfImagesSrcToRemove = [
-  '.left-container > .avatar',
-  '.right-container > .avatar',
-];
-const worldBossEventSelectorsOfGirlsSrcToModify = [];
-const worldBossEventSelectorsOfGirlsAvatarsSrcToModify = [];
-const worldBossEventSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-// World boss pre-battle screen https://www.hentaiheroes.com/world-boss-pre-battle
-const worldBossEventPreBattleSelectorsOfGirlsSrcToModify = ['.base-hexagon > .girl_img'];
-const worldBossEventPreBattleSelectorsOfGirlsAvatarsSrcToModify = [];
-const worldBossEventPreBattleSelectorsOfGirlsNumerousIconsSrcToModify = [];
-
-function processGirlImagesSrcToModify(
-  selectorsOfGirlsSrcToModify,
-  selectorsOfGirlsAvatarsSrcToModify,
-  selectorsOfGirlsNumerousIconsSrcToModify,
-) {
+function modifyCssOfSelectors(selectorsArray, styleRules) {
   if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING GIRLS SRC TO MODIFY');
+    console.log('> PROCESSING MODIFY CSS OF SELECTORS');
   }
 
-  if (HIDE_GIRL_AVATARS && selectorsOfGirlsAvatarsSrcToModify.length > 0) {
-    processImagesSrcToHidePermanently(selectorsOfGirlsAvatarsSrcToModify);
-  }
+  const selectors = selectorsArray.join(', ');
+  const displayNoneRule = `${selectors} { ${styleRules.join(' !important; ')} !important; }\n`;
+
+  const style = document.createElement('style');
+  style.textContent = style.textContent
+    ? style.textContent + `${displayNoneRule}`
+    : displayNoneRule;
+  document.head.prepend(style);
 }
 
 function processBackgroundImagesSrcToHidePermanently(selectorsArray) {
@@ -531,21 +1032,6 @@ function processBackgroundImagesSrcToHidePermanently(selectorsArray) {
 
   const selectors = selectorsArray.join(', ');
   const displayNoneRule = `${selectors} { background-image: none !important; }\n`;
-
-  const style = document.createElement('style');
-  style.textContent = style.textContent
-    ? style.textContent + `${displayNoneRule}`
-    : displayNoneRule;
-  document.head.prepend(style);
-}
-
-function modifyCssOfSelectors(selectorsArray, styleRules) {
-  if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING MODIFY CSS OF SELECTORS');
-  }
-
-  const selectors = selectorsArray.join(', ');
-  const displayNoneRule = `${selectors} { ${styleRules.join(' !important; ')} !important; }\n`;
 
   const style = document.createElement('style');
   style.textContent = style.textContent
@@ -634,438 +1120,7 @@ function processImagesToShowAgain(selectorsArray) {
   }
 }
 
-// Function to process image URLs
-function hideMedias() {
-  if (DEBUG_LIMIT_ACTIVATED) {
-    debugHideLimitCount++;
-    if (debugHideLimitCount > 3) {
-      DEBUG_ACTIVATED = false;
-    }
-  }
-
-  if (DEBUG_ACTIVATED) {
-    console.log(' ');
-    console.log('> ALL PAGES');
-  }
-  processBackgroundImagesSrcToHidePermanently(shopSelectorsOfBackgroundImagesSrcToRemove);
-  processImagesSrcToHidePermanently([
-    ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-    ...loginSelectorsOfImagesSrcToRemove,
-    ...noEnergySelectorsOfImagesSrcToRemove,
-    ...shopSelectorsOfImagesSrcToRemove,
-  ]);
-
-  if (window.location.href.includes('/activities.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> ACTIVITIES PAGE');
-    }
-
-    processBackgroundImagesSrcToHidePermanently(activitiesSelectorsOfBackgroundImagesSrcToRemove);
-    processImagesSrcToHidePermanently(activitiesSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/adventures.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> ADVENTURES PAGE');
-    }
-
-    processBackgroundImagesSrcToHidePermanently(adventuresSelectorsOfBackgroundImagesSrcToRemove);
-    processImagesSrcToHidePermanently(adventuresSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/champions/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHAMPIONS PAGE');
-    }
-
-    processImagesSrcToHidePermanently(championsSelectorsOfImagesSrcToRemove);
-    modifyCssOfSelectors(
-      ['.girl-information'],
-      ['display: flex', 'position: relative', 'left: 200px', 'top: 0px'],
-    );
-    modifyCssOfSelectors(['.nc-event-reward-info'], ['top: 0px', 'left: 100px']);
-    modifyCssOfSelectors(
-      ['.champions-over__champion-rewards-outline'],
-      ['display: flex', 'position: absolute', 'left: -250px', 'top: 50px', 'width: 100%'],
-    );
-    modifyCssOfSelectors(
-      ['.champions-over__champion-wrapper > .champions-over__champion-info'],
-      ['display: flex', 'position: relative', 'left: -250px', 'top: 100px'],
-    );
-    modifyCssOfSelectors(
-      ['.champions-over__champion-tier-link'],
-      ['display: inline-flex', 'width: 2.5rem', 'height: 2.5rem'],
-    );
-  }
-
-  if (window.location.href.includes('/characters/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHARACTERS PAGE');
-    }
-
-    processImagesSrcToHidePermanently(charactersSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/club-champion.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CLUB CHAMPION PAGE');
-    }
-
-    processImagesSrcToHidePermanently(clubChampionSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/edit-labyrinth-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT LABYRINTH TEAM PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/edit-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT TEAM PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/edit-world-boss-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT WORLD BOSS TEAM PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/event.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EVENT PAGE');
-    }
-
-    processImagesSrcToHidePermanently(eventSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/girl/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GIRL PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/god-path.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GOD PATH PAGE');
-    }
-
-    processImagesSrcToHidePermanently(godPathSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/home.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> HOME PAGE');
-    }
-
-    processImagesSrcToReplace(homeSelectorsOfImagesSrcToReplace, NEW_BACKGROUNG_URL);
-
-    processBackgroundImagesSrcToHidePermanently(homeSelectorsOfBackgroundImagesSrcToRemove);
-    processImagesSrcToHidePermanently(homeSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/labyrinth.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/labyrinth-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH BATTLE PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/labyrinth-entrance.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH ENTRANCE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(labyrinthEntranceSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/labyrinth-pool-select.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH POOL SELECT PAGE');
-    }
-
-    processImagesSrcToHidePermanently(labyrinthPoolSelectSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/labyrinth-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PRE-BATTLE PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/leagues.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUES PAGE');
-    }
-
-    processImagesSrcToHidePermanently(leaguesSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/league-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(leagueBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/leagues-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE PRE-BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(leaguePreBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/love-raids.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LOVE RAIDS PAGE');
-    }
-
-    processImagesSrcToHidePermanently(loveRaidsSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/member-progression.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> MEMBER PROGRESSION PAGE');
-    }
-
-    processImagesSrcToHidePermanently(memberProgressionSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/pachinko.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PACHINKO PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pachinkoSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/pantheon.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pantheonSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/pantheon-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pantheonBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/pantheon-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PRE-BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pantheonPreBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/path-of-glory.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF GLORY PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pathOfGlorySelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/path-of-valor.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF VALOR PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pathOfValorSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/penta-drill.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pentaDrillSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/penta-drill-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL ARENA PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pentaDrillArenaSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/penta-drill-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pentaDrillBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/pvp-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PVP ARENA PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pvpArenaSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/season.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON PAGE');
-    }
-
-    processImagesSrcToHidePermanently(seasonSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/season-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON ARENA PAGE');
-    }
-
-    processImagesSrcToHidePermanently(seasonArenaSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/season-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(seasonBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/seasonal.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASONAL PAGE');
-    }
-
-    processImagesSrcToHidePermanently(seasonalSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/side-quests.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SIDE QUESTS PAGE');
-    }
-
-    processImagesSrcToHidePermanently(sideQuestsSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/teams.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TEAMS PAGE');
-    }
-
-    processImagesSrcToHidePermanently(teamsSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/troll-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(trollBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/troll-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL PRE-BATTLE PAGE');
-    }
-
-    processImagesSrcToHidePermanently(trollPreBattleSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/waifu.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WAIFU PAGE');
-    }
-
-    processImagesSrcToHidePermanently(waifuSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/world/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD PAGE');
-    }
-
-    processImagesSrcToHidePermanently(worldSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/world-boss-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS BATTLE PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/world-boss-event')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS EVENT PAGE');
-    }
-
-    processImagesSrcToHidePermanently(worldBossEventSelectorsOfImagesSrcToRemove);
-  }
-
-  if (window.location.href.includes('/world-boss-pre-battle')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS PRE-BATTLE PAGE');
-    }
-  }
-}
-
-function hideMediasTemporarily() {
+function runProcessesOnDOMContentLoaded() {
   if (DEBUG_LIMIT_ACTIVATED) {
     debugHideTemporarilyLimitCount++;
     if (debugHideTemporarilyLimitCount > 3) {
@@ -1073,1200 +1128,53 @@ function hideMediasTemporarily() {
     }
   }
 
-  if (DEBUG_ACTIVATED) {
-    console.log(' ');
-    console.log('> ALL PAGES');
-  }
-  if (window.location.href.includes('/quest/')) {
-    processImagesToHideTemporarily(questSelectorsOfImagesToHide);
-  }
-
-  if (window.location.href.includes('/activities.html')) {
+  PAGE_LIST.forEach(({name, selectors : {imagesToHideTemporarily}, slug}) => {
     if (DEBUG_ACTIVATED) {
       console.log(' ');
-      console.log('> ACTIVITIES PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/adventures.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> ADVENTURES PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/champions/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHAMPIONS PAGE');
+      console.log(`> ${name} PAGE${name === 'ALL' ? 'S' : ''}`);
     }
 
-    // processGirlImagesSrcToModify(
-    //   championSelectorsOfGirlsSrcToModify,
-    //   championSelectorsOfGirlsAvatarsSrcToModify,
-    //   championSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/characters/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHARACTERS PAGE');
+    if (!slug || window.location.href.includes(slug)) {
+      processImagesToHideTemporarily(imagesToHideTemporarily);
     }
-
-    // processGirlImagesSrcToModify(
-    //   charactersSelectorsOfGirlsSrcToModify,
-    //   charactersSelectorsOfGirlsAvatarsSrcToModify,
-    //   charactersSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/club-champion.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CLUB CHAMPION PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   clubChampionSelectorsOfGirlsSrcToModify,
-    //   clubChampionSelectorsOfGirlsAvatarsSrcToModify,
-    //   clubChampionSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/edit-labyrinth-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT LABYRINTH TEAM PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   editLabyrinthTeamSelectorsOfGirlsSrcToModify,
-    //   editLabyrinthTeamSelectorsOfGirlsAvatarsSrcToModify,
-    //   editLabyrinthTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/edit-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT TEAM PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   editTeamSelectorsOfGirlsSrcToModify,
-    //   editTeamSelectorsOfGirlsAvatarsSrcToModify,
-    //   editTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/edit-world-boss-team.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT WORLD BOSS TEAM PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   editWorldBossTeamSelectorsOfGirlsSrcToModify,
-    //   editWorldBossTeamSelectorsOfGirlsAvatarsSrcToModify,
-    //   editWorldBossTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/event.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EVENT PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/girl/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GIRL PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   girlSelectorsOfGirlsSrcToModify,
-    //   girlSelectorsOfGirlsAvatarsSrcToModify,
-    //   girlSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/god-path.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GOD PATH PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   godPathSelectorsOfGirlsSrcToModify,
-    //   godPathSelectorsOfGirlsAvatarsSrcToModify,
-    //   godPathSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/home.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> HOME PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   homeSelectorsOfGirlsSrcToModify,
-    //   homeSelectorsOfGirlsAvatarsSrcToModify,
-    //   homeSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/labyrinth.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   labyrinthSelectorsOfGirlsSrcToModify,
-    //   labyrinthSelectorsOfGirlsAvatarsSrcToModify,
-    //   labyrinthSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/labyrinth-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   labyrinthBattleSelectorsOfGirlsSrcToModify,
-    //   labyrinthBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   labyrinthBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/labyrinth-entrance.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH ENTRANCE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   labyrinthEntranceSelectorsOfGirlsSrcToModify,
-    //   labyrinthEntranceSelectorsOfGirlsAvatarsSrcToModify,
-    //   labyrinthEntranceSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/labyrinth-pool-select.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH POOL SELECT PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   labyrinthPoolSelectSelectorsOfGirlsSrcToModify,
-    //   labyrinthPoolSelectSelectorsOfGirlsAvatarsSrcToModify,
-    //   labyrinthPoolSelectSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/labyrinth-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PRE-BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   labyrinthPreBattleSelectorsOfGirlsSrcToModify,
-    //   labyrinthPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   labyrinthPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/leagues.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUES PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   leaguesSelectorsOfGirlsSrcToModify,
-    //   leaguesSelectorsOfGirlsAvatarsSrcToModify,
-    //   leaguesSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/league-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   leagueBattleSelectorsOfGirlsSrcToModify,
-    //   leagueBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   leagueBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/leagues-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE PRE-BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   leaguePreBattleSelectorsOfGirlsSrcToModify,
-    //   leaguePreBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   leaguePreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/love-raids.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LOVE RAIDS PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   loveRaidsSelectorsOfGirlsSrcToModify,
-    //   loveRaidsSelectorsOfGirlsAvatarsSrcToModify,
-    //   loveRaidsSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/member-progression.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> MEMBER PROGRESSION PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/pachinko.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PACHINKO PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/pantheon.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PAGE');
-    }
-
-    processImagesSrcToHidePermanently(pantheonSelectorsOfImagesSrcToRemove);
-    // processGirlImagesSrcToModify(
-    //   pantheonSelectorsOfGirlsSrcToModify,
-    //   pantheonSelectorsOfGirlsAvatarsSrcToModify,
-    //   pantheonSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/pantheon-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON BATTLE PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   pantheonBattleSelectorsOfGirlsSrcToModify,
-    //   pantheonBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   pantheonBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/pantheon-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PRE-BATTLE PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   pantheonPreBattleSelectorsOfGirlsSrcToModify,
-    //   pantheonPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   pantheonPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/path-of-glory.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF GLORY PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pathOfGlorySelectorsOfGirlsSrcToModify,
-    //   pathOfGlorySelectorsOfGirlsAvatarsSrcToModify,
-    //   pathOfGlorySelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/path-of-valor.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF VALOR PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pathOfValorSelectorsOfGirlsSrcToModify,
-    //   pathOfValorSelectorsOfGirlsAvatarsSrcToModify,
-    //   pathOfValorSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/penta-drill.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pentaDrillSelectorsOfGirlsSrcToModify,
-    //   pentaDrillSelectorsOfGirlsAvatarsSrcToModify,
-    //   pentaDrillSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/penta-drill-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL ARENA PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pentaDrillArenaSelectorsOfGirlsSrcToModify,
-    //   pentaDrillArenaSelectorsOfGirlsAvatarsSrcToModify,
-    //   pentaDrillArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/penta-drill-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pentaDrillBattleSelectorsOfGirlsSrcToModify,
-    //   pentaDrillBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   pentaDrillBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/pvp-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PVP ARENA PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   pvpArenaSelectorsOfGirlsSrcToModify,
-    //   pvpArenaSelectorsOfGirlsAvatarsSrcToModify,
-    //   pvpArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/season.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   seasonSelectorsOfGirlsSrcToModify,
-    //   seasonSelectorsOfGirlsAvatarsSrcToModify,
-    //   seasonSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/season-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON ARENA PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   seasonArenaSelectorsOfGirlsSrcToModify,
-    //   seasonArenaSelectorsOfGirlsAvatarsSrcToModify,
-    //   seasonArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/season-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON BATTLE PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   seasonBattleSelectorsOfGirlsSrcToModify,
-    //   seasonBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   seasonBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/seasonal.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASONAL PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   seasonalSelectorsOfGirlsSrcToModify,
-    //   seasonalSelectorsOfGirlsAvatarsSrcToModify,
-    //   seasonalSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/side-quests.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SIDE QUESTS PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/teams.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TEAMS PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   teamsSelectorsOfGirlsSrcToModify,
-    //   teamsSelectorsOfGirlsAvatarsSrcToModify,
-    //   teamsSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/troll-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL BATTLE PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   trollBattleSelectorsOfGirlsSrcToModify,
-    //   trollBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   trollBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/troll-pre-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL PRE-BATTLE PAGE');
-    }
-    // processGirlImagesSrcToModify(
-    //   trollPreBattleSelectorsOfGirlsSrcToModify,
-    //   trollPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   trollPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/waifu.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WAIFU PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/world/')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/world-boss-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   worldBossBattleSelectorsOfGirlsSrcToModify,
-    //   worldBossBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   worldBossBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
-
-  if (window.location.href.includes('/world-boss-event')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS EVENT PAGE');
-    }
-  }
-
-  if (window.location.href.includes('/world-boss-pre-battle')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS PRE-BATTLE PAGE');
-    }
-
-    // processGirlImagesSrcToModify(
-    //   worldBossEventPreBattleSelectorsOfGirlsSrcToModify,
-    //   worldBossEventPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-    //   worldBossEventPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    // );
-  }
+  })
 }
 
-function modifyMedias() {
+function runProcessesOnPageLoad() {
   if (DEBUG_LIMIT_ACTIVATED) {
-    debugModifyLimitCount++;
-    if (debugModifyLimitCount > 3) {
+    debugHideLimitCount++;
+    if (debugHideLimitCount > 3) {
       DEBUG_ACTIVATED = false;
     }
   }
 
-  if (DEBUG_ACTIVATED) {
-    console.log(' ');
-    console.log('> ALL PAGES');
-  }
-  if (REPLACE_BACKGROUND && !HIDE_BACKGROUND) {
-    processImagesSrcToReplace(['.fixed_scaled > img'], NEW_BACKGROUNG_URL);
-  }
-
-  if (window.location.href.includes('/activities.html')) {
-    foundMatchingUrl = true;
+  PAGE_LIST.forEach(({
+                       name,
+                       selectors : {
+                         backgroundImagesSrcToHidePermanently,
+                         cssToModify,
+                         imagesSrcToHidePermanently,
+                         imagesSrcToReplace
+                       },
+                       slug,
+                       values
+                     }) => {
     if (DEBUG_ACTIVATED) {
       console.log(' ');
-      console.log('> ACTIVITIES PAGE');
+      console.log(`> ${name} PAGE${name === 'ALL' ? 'S' : ''}`);
     }
 
-    processGirlImagesSrcToModify(
-      activitiesSelectorsOfGirlsSrcToModify,
-      activitiesSelectorsOfGirlsAvatarsSrcToModify,
-      activitiesSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
+    if (!slug || window.location.href.includes(slug)) {
+      processBackgroundImagesSrcToHidePermanently(backgroundImagesSrcToHidePermanently);
+      processImagesSrcToHidePermanently(imagesSrcToHidePermanently);
+      processImagesSrcToReplace(imagesSrcToReplace, values.imagesSrcToReplace);
 
-  if (window.location.href.includes('/adventures.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> ADVENTURES PAGE');
+      for (let i = 0; i < cssToModify.length; i++) {
+        modifyCssOfSelectors(cssToModify[i], values.cssToModify[i]);
+      }
     }
-
-    processGirlImagesSrcToModify(
-      adventuresSelectorsOfGirlsSrcToModify,
-      adventuresSelectorsOfGirlsAvatarsSrcToModify,
-      adventuresSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/champions/')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHAMPIONS PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      championSelectorsOfGirlsSrcToModify,
-      championSelectorsOfGirlsAvatarsSrcToModify,
-      championSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/characters/')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CHARACTERS PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      charactersSelectorsOfGirlsSrcToModify,
-      charactersSelectorsOfGirlsAvatarsSrcToModify,
-      charactersSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/club-champion.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> CLUB CHAMPION PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      clubChampionSelectorsOfGirlsSrcToModify,
-      clubChampionSelectorsOfGirlsAvatarsSrcToModify,
-      clubChampionSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/edit-labyrinth-team.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT LABYRINTH TEAM PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      editLabyrinthTeamSelectorsOfGirlsSrcToModify,
-      editLabyrinthTeamSelectorsOfGirlsAvatarsSrcToModify,
-      editLabyrinthTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/edit-team.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT TEAM PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      editTeamSelectorsOfGirlsSrcToModify,
-      editTeamSelectorsOfGirlsAvatarsSrcToModify,
-      editTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/edit-world-boss-team.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EDIT WORLD BOSS TEAM PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      editWorldBossTeamSelectorsOfGirlsSrcToModify,
-      editWorldBossTeamSelectorsOfGirlsAvatarsSrcToModify,
-      editWorldBossTeamSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/event.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> EVENT PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      eventSelectorsOfGirlsSrcToModify,
-      eventSelectorsOfGirlsAvatarsSrcToModify,
-      eventSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/girl/')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GIRL PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      girlSelectorsOfGirlsSrcToModify,
-      girlSelectorsOfGirlsAvatarsSrcToModify,
-      girlSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/god-path.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> GOD PATH PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      godPathSelectorsOfGirlsSrcToModify,
-      godPathSelectorsOfGirlsAvatarsSrcToModify,
-      godPathSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/home.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> HOME PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      homeSelectorsOfGirlsSrcToModify,
-      homeSelectorsOfGirlsAvatarsSrcToModify,
-      homeSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/labyrinth.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      labyrinthSelectorsOfGirlsSrcToModify,
-      labyrinthSelectorsOfGirlsAvatarsSrcToModify,
-      labyrinthSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/labyrinth-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      labyrinthBattleSelectorsOfGirlsSrcToModify,
-      labyrinthBattleSelectorsOfGirlsAvatarsSrcToModify,
-      labyrinthBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/labyrinth-entrance.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH ENTRANCE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      labyrinthEntranceSelectorsOfGirlsSrcToModify,
-      labyrinthEntranceSelectorsOfGirlsAvatarsSrcToModify,
-      labyrinthEntranceSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/labyrinth-pool-select.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH POOL SELECT PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      labyrinthPoolSelectSelectorsOfGirlsSrcToModify,
-      labyrinthPoolSelectSelectorsOfGirlsSrcToModify,
-      labyrinthPoolSelectSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/labyrinth-pre-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LABYRINTH PRE-BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      labyrinthPreBattleSelectorsOfGirlsSrcToModify,
-      labyrinthPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-      labyrinthPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/leagues.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUES PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      leaguesSelectorsOfGirlsSrcToModify,
-      leaguesSelectorsOfGirlsAvatarsSrcToModify,
-      leaguesSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/league-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      leagueBattleSelectorsOfGirlsSrcToModify,
-      leagueBattleSelectorsOfGirlsAvatarsSrcToModify,
-      leagueBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/leagues-pre-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LEAGUE PRE-BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      leaguePreBattleSelectorsOfGirlsSrcToModify,
-      leaguePreBattleSelectorsOfGirlsAvatarsSrcToModify,
-      leaguePreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/love-raids.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> LOVE RAIDS PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      loveRaidsSelectorsOfGirlsSrcToModify,
-      loveRaidsSelectorsOfGirlsAvatarsSrcToModify,
-      loveRaidsSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/member-progression.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> MEMBER PROGRESSION PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      memberProgressionSelectorsOfGirlsSrcToModify,
-      memberProgressionSelectorsOfGirlsAvatarsSrcToModify,
-      memberProgressionSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/pachinko.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PACHINKO PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pachinkoSelectorsOfGirlsSrcToModify,
-      pachinkoSelectorsOfGirlsAvatarsSrcToModify,
-      pachinkoSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/pantheon.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pantheonSelectorsOfGirlsSrcToModify,
-      pantheonSelectorsOfGirlsAvatarsSrcToModify,
-      pantheonSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/pantheon-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pantheonBattleSelectorsOfGirlsSrcToModify,
-      pantheonBattleSelectorsOfGirlsAvatarsSrcToModify,
-      pantheonBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/pantheon-pre-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PANTHEON PRE-BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pantheonPreBattleSelectorsOfGirlsSrcToModify,
-      pantheonPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-      pantheonPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/path-of-glory.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF GLORY PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pathOfGlorySelectorsOfGirlsSrcToModify,
-      pathOfGlorySelectorsOfGirlsAvatarsSrcToModify,
-      pathOfGlorySelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/path-of-valor.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PATH OF VALOR PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pathOfValorSelectorsOfGirlsSrcToModify,
-      pathOfValorSelectorsOfGirlsAvatarsSrcToModify,
-      pathOfValorSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/penta-drill.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pentaDrillSelectorsOfGirlsSrcToModify,
-      pentaDrillSelectorsOfGirlsAvatarsSrcToModify,
-      pentaDrillSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/penta-drill-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL ARENA PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pentaDrillArenaSelectorsOfGirlsSrcToModify,
-      pentaDrillArenaSelectorsOfGirlsAvatarsSrcToModify,
-      pentaDrillArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/penta-drill-battle.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PENTA DRILL BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pentaDrillBattleSelectorsOfGirlsSrcToModify,
-      pentaDrillBattleSelectorsOfGirlsAvatarsSrcToModify,
-      pentaDrillBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/pvp-arena.html')) {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> PVP ARENA PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      pvpArenaSelectorsOfGirlsSrcToModify,
-      pvpArenaSelectorsOfGirlsAvatarsSrcToModify,
-      pvpArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/season.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      seasonSelectorsOfGirlsSrcToModify,
-      seasonSelectorsOfGirlsAvatarsSrcToModify,
-      seasonSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/season-arena.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON ARENA PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      seasonArenaSelectorsOfGirlsSrcToModify,
-      seasonArenaSelectorsOfGirlsAvatarsSrcToModify,
-      seasonArenaSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/season-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASON BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      seasonBattleSelectorsOfGirlsSrcToModify,
-      seasonBattleSelectorsOfGirlsAvatarsSrcToModify,
-      seasonBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/seasonal.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SEASONAL PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      seasonalSelectorsOfGirlsSrcToModify,
-      seasonalSelectorsOfGirlsAvatarsSrcToModify,
-      seasonalSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/side-quests.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> SIDE QUESTS PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      sideQuestsSelectorsOfGirlsSrcToModify,
-      sideQuestsSelectorsOfGirlsAvatarsSrcToModify,
-      sideQuestsSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/teams.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TEAMS PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      teamsSelectorsOfGirlsSrcToModify,
-      teamsSelectorsOfGirlsAvatarsSrcToModify,
-      teamsSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/troll-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      trollBattleSelectorsOfGirlsSrcToModify,
-      trollBattleSelectorsOfGirlsAvatarsSrcToModify,
-      trollBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/troll-pre-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> TROLL PRE-BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      trollPreBattleSelectorsOfGirlsSrcToModify,
-      trollPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-      trollPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/waifu.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WAIFU PAGE');
-    }
-
-  }
-  processGirlImagesSrcToModify(
-    waifuSelectorsOfGirlsSrcToModify,
-    waifuSelectorsOfGirlsAvatarsSrcToModify,
-    waifuSelectorsOfGirlsNumerousIconsSrcToModify,
-  );
-
-  if (window.location.href.includes('/world/')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      worldSelectorsOfGirlsSrcToModify,
-      worldSelectorsOfGirlsAvatarsSrcToModify,
-      worldSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/world-boss-battle.html')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      worldBossBattleSelectorsOfGirlsSrcToModify,
-      worldBossBattleSelectorsOfGirlsAvatarsSrcToModify,
-      worldBossBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/world-boss-event')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS EVENT PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      worldBossEventSelectorsOfGirlsSrcToModify,
-      worldBossEventSelectorsOfGirlsAvatarsSrcToModify,
-      worldBossEventSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (window.location.href.includes('/world-boss-pre-battle')) {
-    foundMatchingUrl = true;
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log('> WORLD BOSS PRE-BATTLE PAGE');
-    }
-
-    processGirlImagesSrcToModify(
-      worldBossEventPreBattleSelectorsOfGirlsSrcToModify,
-      worldBossEventPreBattleSelectorsOfGirlsAvatarsSrcToModify,
-      worldBossEventPreBattleSelectorsOfGirlsNumerousIconsSrcToModify,
-    );
-  }
-
-  if (!foundMatchingUrl) {
-    if (DEBUG_ACTIVATED) {
-      console.log('> ');
-      console.log('> NO MATCHING URL FOUND (killing observer...)');
-    }
-    if (killObserverCount < killObserverDelay) {
-      killObserverCount++;
-      resetObserverState();
-    } else {
-      killObserver();
-    }
-  }
+  });
 }
-
-hideMedias();
-modifyMedias();
-
-// DOM is ready, resources may still be loading
-document.addEventListener('DOMContentLoaded', function () {
-  if (DEBUG_ACTIVATED) {
-    console.log('> ');
-    console.log('> DOMContentLoaded');
-  }
-  hideMediasTemporarily();
-});
 
 // Add event listener for clicks
 document.addEventListener('click', function (event) {
@@ -2282,7 +1190,18 @@ document.addEventListener('click', function (event) {
       console.log('> SPECIAL BUTTON CLICKED (IMG PROCESSING STOPPED)');
     }
     if (window.location.href.includes('/quest/')) {
-      processImagesToShowAgain(questSelectorsOfImagesToHide);
+      processImagesToShowAgain(['.canvas > .picture']);
     }
   }
 });
+
+// DOM is ready, resources may still be loading
+document.addEventListener('DOMContentLoaded', function () {
+  if (DEBUG_ACTIVATED) {
+    console.log('> ');
+    console.log('> DOMContentLoaded');
+  }
+  runProcessesOnDOMContentLoaded();
+});
+
+runProcessesOnPageLoad();
