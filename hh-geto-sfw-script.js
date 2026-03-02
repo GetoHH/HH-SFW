@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      3.1.0
+// @version      3.1.1
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.1.1: Remove unnecessary spreads
 // 3.1.0: Refactor code to mutualize page lists
 // 3.0.0: Remove girl img src modifications and observer due to girl media url changes that no longer allow the process
 // 2.2.0: Add waifu page support
@@ -100,18 +101,14 @@ const PAGE_LIST = [
       ],
       imagesSrcToHidePermanently : [
         ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-        ...[
-          '.intro > .quest-container > #scene > .canvas > .picture',
-          '.background_image-style > img',
-        ], // Login pop-up (no precise url as it can appear on any page)
-        ...['#no_energy_popup > .avatar'], // No enegery pop-up (no precise url as it can be opened with the plus icon on any page),
-        ...[
-          '.info-top-block > .bunny-rotate-device',
-          '.container > .avatar',
-          '.prestige > .avatar',
-          '#special-offer > .background-video',
-          '.pwa-info-container > .install_app_girl',
-        ], // Shop pop-up (no precise url as it can be opened with the chest icon on the homepage or the plus icon on any page)
+        '.intro > .quest-container > #scene > .canvas > .picture',
+        '.background_image-style > img',
+        '#no_energy_popup > .avatar',
+        '.info-top-block > .bunny-rotate-device',
+        '.container > .avatar',
+        '.prestige > .avatar',
+        '#special-offer > .background-video',
+        '.pwa-info-container > .install_app_girl',
       ],
       imagesToHideTemporarily : [],
     },
@@ -209,7 +206,7 @@ const PAGE_LIST = [
           '.avatar-box > .avatar',
           '.awakening-container > .avatar',
         ] : []),
-        ...['.lively_scene > img'],
+        '.lively_scene > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -226,13 +223,11 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-          '.figure',
-          '.girl-fav-position > .favorite-position',
-          '.girl-card > .fav-position',
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.figure',
+        '.girl-fav-position > .favorite-position',
+        '.girl-card > .fav-position',
         ...(HIDE_GIRL_AVATARS ? [
           '.champions-over__champion-wrapper > .avatar',
         ] : []),
@@ -303,13 +298,11 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-          '.sm-static-girl > img',
-          '.lse_puzzle_wrapper > .lively_scene_image',
-          '.lively_scenes_preview > div > img',
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.sm-static-girl > img',
+        '.lse_puzzle_wrapper > .lively_scene_image',
+        '.lively_scenes_preview > div > img',
         ...(HIDE_GIRL_AVATARS ? ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
@@ -347,7 +340,7 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.feature-girl > .avatar'] : []),
-        ...['.container-category > .feature-bgr']
+        '.container-category > .feature-bgr',
       ],
       imagesToHideTemporarily : [],
     },
@@ -369,13 +362,11 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : ['.fixed_scaled > img'],
       imagesSrcToHidePermanently : [
-        ...(HIDE_GIRL_AVATARS ? ['.waifu-container > .avatar',] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-          '.info-top-block > .bunny-rotate-device',
-          '.pwa-info-container > .install_app_girl',
-        ],
+        ...(HIDE_GIRL_AVATARS ? ['.waifu-container > .avatar'] : []),
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.info-top-block > .bunny-rotate-device',
+        '.pwa-info-container > .install_app_girl',
       ],
       imagesToHideTemporarily : [],
     },
@@ -485,11 +476,9 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-          '.tier_icons > img',
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
+        '.tier_icons > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -507,10 +496,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -528,10 +515,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl-block > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -554,10 +539,8 @@ const PAGE_LIST = [
           '.right-girl-container > .avatar',
           '.right-girl-container > .girl-img',
         ] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -629,10 +612,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -822,10 +803,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -843,7 +822,7 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girls-reward-container > .avatar'] : []),
-        ...['.lively_scene > img'],
+        '.lively_scene > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -891,10 +870,8 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
-        ...[
-          ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
-          ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
-        ],
+        ...(HIDE_PLAYER_AVATARS ? ['.player-profile-picture > img'] : []),
+        ...(HIDE_BACKGROUND ? ['.fixed_scaled > img'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -947,7 +924,7 @@ const PAGE_LIST = [
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.girl_world > .avatar'] : []),
-        ...['.troll_world > .troll-tier-img'],
+        '.troll_world > .troll-tier-img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -981,7 +958,7 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_GIRL_AVATARS ?  [
+        ...(HIDE_GIRL_AVATARS ? [
           '.left-container > .avatar',
           '.right-container > .avatar',
         ] : []),
