@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      3.2.0
+// @version      3.3.0
 // @match        https://*.comixharem.com/*
 // @match        https://*.hentaiheroes.com/*
 // @match        https://*.pornstarharem.com/*
@@ -13,6 +13,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.3.0: Optimize code
 // 3.2.0: Optimize and mutualize code, fix bugs (empty selector crash, dead ternary, QUEST TypeError, unused constant)
 // 3.1.0: Refactor code to mutualize page lists
 // 3.0.0: Remove girl img src modifications and observer due to girl media url changes that no longer allow the process
@@ -61,7 +62,6 @@
 /**
  * CONFIGURATION
  */
-let DEBUG_ACTIVATED = false;
 const DEBUG_LIMIT_ACTIVATED = false;
 
 const HIDE_BACKGROUND    = false;
@@ -72,7 +72,11 @@ const REPLACE_BACKGROUND = true;
 /**
  * VARIABLES
  */
+// let is required — DEBUG_ACTIVATED is reassigned to false inside checkDebugLimit()
+let DEBUG_ACTIVATED = false; // eslint-disable-line no-var
 let debugLimitCount = 0;
+let isCssInjected = false;
+let isDOMReady = false;
 
 /**
  * CONSTANTS
@@ -819,6 +823,12 @@ const PAGE_LIST = [
   },
 ];
 
+// Pre-filter once at startup — only keep entries that match the current URL.
+// The 'ALL' entry (empty slug) always matches. All others are tested against href.
+const ACTIVE_PAGES = PAGE_LIST
+  .filter(({ slug }) => !slug || window.location.href.includes(slug))
+  .map(({ selectors, values }) => ({ selectors, values : values ?? DEFAULT_VALUES }));
+
 /**
  * Injects a CSS rule hiding all matched selectors via the given CSS property.
  * Unified helper for both display:none and background-image:none cases.
@@ -909,21 +919,10 @@ function checkDebugLimit() {
 
 /**
  * Unified page processing loop — runs all selectors for the current page.
- * Safe to call before DOMContentLoaded (CSS injection) and again after (DOM manipulation).
+ * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
  */
 function runAllProcesses() {
-  checkDebugLimit();
-
-  PAGE_LIST.forEach(({ name, slug, selectors, values }) => {
-    if (DEBUG_ACTIVATED) {
-      console.log(' ');
-      console.log(`> ${name} PAGE${name === 'ALL' ? 'S' : ''}`);
-    }
-
-    if (slug && !window.location.href.includes(slug)) {
-      return;
-    }
-
+  ACTIVE_PAGES.forEach(({ selectors, values }) => {
     const {
       backgroundImagesSrcToHidePermanently,
       cssToModify,
@@ -932,18 +931,20 @@ function runAllProcesses() {
       imagesToHideTemporarily,
     } = selectors;
 
-    const resolvedValues = values ?? DEFAULT_VALUES;
+    // CSS injection — runs once only on the early call, before DOMContentLoaded
+    if (!isCssInjected) {
+      injectCssHideRule(backgroundImagesSrcToHidePermanently, 'background-image');
+      injectCssHideRule(imagesSrcToHidePermanently, 'display');
+      cssToModify.forEach((selectorGroup, i) => {
+        modifyCssOfSelectors(selectorGroup, values.cssToModify[i]);
+      });
+    }
 
-    // CSS injection — safe before DOMContentLoaded
-    injectCssHideRule(backgroundImagesSrcToHidePermanently, 'background-image');
-    injectCssHideRule(imagesSrcToHidePermanently, 'display');
-    cssToModify.forEach((selectorGroup, i) => {
-      modifyCssOfSelectors(selectorGroup, resolvedValues.cssToModify[i]);
-    });
-
-    // DOM manipulation — requires elements to exist (called again after DOMContentLoaded)
-    processImagesSrcToReplace(imagesSrcToReplace, resolvedValues.imagesSrcToReplace);
-    setElementsDisplay(imagesToHideTemporarily, 'none');
+    // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
+    if (isDOMReady) {
+      processImagesSrcToReplace(imagesSrcToReplace, values.imagesSrcToReplace);
+      setElementsDisplay(imagesToHideTemporarily, 'none');
+    }
   });
 }
 
@@ -967,14 +968,18 @@ document.addEventListener('click', function (event) {
 });
 
 // DOM is ready, resources may still be loading.
-// Run again so that processImagesSrcToReplace and setElementsDisplay can find DOM elements.
+// Set isDOMReady so that processImagesSrcToReplace and setElementsDisplay are now allowed to run.
+// CSS injection is skipped on this second call (isCssInjected is already true).
 document.addEventListener('DOMContentLoaded', function () {
   if (DEBUG_ACTIVATED) {
     console.log('> ');
     console.log('> DOMContentLoaded');
   }
+  isDOMReady = true;
   runAllProcesses();
 });
 
-// Run immediately at script start for CSS injection (works before DOM is ready)
+// Run immediately at script start — CSS injection only (isDOMReady is false, DOM manipulation is skipped)
+checkDebugLimit();
 runAllProcesses();
+isCssInjected = true;
