@@ -1,11 +1,9 @@
 // ==UserScript==
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
-// @description  Removing explicit images in Hentai Heroes game and setting all girls / champions poses to the default one.
-// @version      3.3.0
-// @match        https://*.comixharem.com/*
+// @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
+// @version      3.3.2
 // @match        https://*.hentaiheroes.com/*
-// @match        https://*.pornstarharem.com/*
 // @run-at       document-start
 // @grant        none
 // @author       Geto_hh
@@ -13,6 +11,8 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.3.2: Update description
+// 3.3.1: Update description
 // 3.3.0: Optimize code
 // 3.2.0: Optimize and mutualize code, fix bugs (empty selector crash, dead ternary, QUEST TypeError, unused constant)
 // 3.1.0: Refactor code to mutualize page lists
