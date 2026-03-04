@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.3.2
+// @version      3.4.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.4.0: Hide images in harem
 // 3.3.2: Update description
 // 3.3.1: Update description
 // 3.3.0: Optimize code
@@ -116,6 +117,13 @@ const PAGE_LIST = [
         '.prestige > .avatar',
         '#special-offer > .background-video',
         '.pwa-info-container > .install_app_girl',
+        ...(HIDE_GIRL_AVATARS ? [
+          '.avatar-box > .avatar',
+          '.awakening-container > .avatar',
+          // '.girl-avatar-wrapper > .avatar',
+          // '.girl-skills-avatar > .avatar',
+        ] : []),
+        '.lively_scene > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -313,6 +321,23 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : [
         ...(HIDE_GIRL_AVATARS ? ['.feature-girl > .avatar'] : []),
         '.container-category > .feature-bgr',
+      ],
+      imagesToHideTemporarily : [],
+    },
+  },
+  {
+    name : 'HAREM',
+    slug : '/harem.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      cssToModify : [],
+      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_GIRL_AVATARS ? [
+          '.avatar-box > .avatar',
+          '.awakening-container > .avatar',
+        ] : []),
+        '.lively_scene > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -827,7 +852,7 @@ const PAGE_LIST = [
 // The 'ALL' entry (empty slug) always matches. All others are tested against href.
 const ACTIVE_PAGES = PAGE_LIST
   .filter(({ slug }) => !slug || window.location.href.includes(slug))
-  .map(({ selectors, values }) => ({ selectors, values : values ?? DEFAULT_VALUES }));
+  .map((page) => ({ ...page, values : page.values ?? DEFAULT_VALUES }));
 
 /**
  * Injects a CSS rule hiding all matched selectors via the given CSS property.
@@ -922,7 +947,11 @@ function checkDebugLimit() {
  * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
  */
 function runAllProcesses() {
-  ACTIVE_PAGES.forEach(({ selectors, values }) => {
+  ACTIVE_PAGES.forEach(({ name, selectors, slug, values }) => {
+    if (DEBUG_ACTIVATED) {
+      console.log('> ')
+      console.log(`> PROCESSING ${name} PAGE with SLUG: ${slug}`)
+    }
     const {
       backgroundImagesSrcToHidePermanently,
       cssToModify,
@@ -958,7 +987,7 @@ document.addEventListener('click', function (event) {
       window.location.href.includes('/quest/'))
   ) {
     if (DEBUG_ACTIVATED) {
-      console.log('');
+      console.log('> ');
       console.log('> SPECIAL BUTTON CLICKED (IMG PROCESSING STOPPED)');
     }
     if (window.location.href.includes('/quest/')) {
