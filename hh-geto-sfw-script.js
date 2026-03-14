@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.4.0
+// @version      3.5.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.5.0: Hide lse girl
 // 3.4.0: Hide images in harem
 // 3.3.2: Update description
 // 3.3.1: Update description
@@ -290,7 +291,7 @@ const PAGE_LIST = [
         '.sm-static-girl > img',
         '.lse_puzzle_wrapper > .lively_scene_image',
         '.lively_scenes_preview > div > img',
-        ...(HIDE_GIRL_AVATARS ? ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar'] : []),
+        ...(HIDE_GIRL_AVATARS ? ['.column-girl > img', '.girls-container > .avatar', '.right-container > .avatar', '.slide > .avatar', '.lse_girl_container > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
     },
