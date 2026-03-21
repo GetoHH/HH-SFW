@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.5.0
+// @version      3.6.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.6.0: Hide champions
 // 3.5.0: Hide lse girl
 // 3.4.0: Hide images in harem
 // 3.3.2: Update description
@@ -183,11 +184,14 @@ const PAGE_LIST = [
       imagesSrcToHidePermanently : [
         ...PLAYER_AVATAR_SELECTORS,
         ...BACKGROUND_SELECTORS,
-        '.champions-animation > .avatar',
-        '.champions-animation > .champions-over__champion-image',
+        '.champions-over__champion-wrapper > .champions-over__champion-image',
+        '.champions-over__champion-wrapper > .champions-over__champion-dialog-box',
         '.defender-preview > img',
         '.attacker-preview > .character',
         '.rounds-info__figures > .figure',
+        ...(HIDE_GIRL_AVATARS ? [
+          '.champions-over__champion-wrapper > .avatar',
+        ] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -230,6 +234,8 @@ const PAGE_LIST = [
         ...PLAYER_AVATAR_SELECTORS,
         ...BACKGROUND_SELECTORS,
         '.figure',
+        '.champions-over__champion-wrapper > .champions-over__champion-image',
+        '.champions-over__champion-wrapper > .champions-over__champion-dialog-box',
         '.girl-fav-position > .favorite-position',
         '.girl-card > .fav-position',
         ...(HIDE_GIRL_AVATARS ? [
