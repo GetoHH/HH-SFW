@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.6.0
+// @version      3.6.1
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.6.1: Fix club champion css
 // 3.6.0: Hide champions
 // 3.5.0: Hide lse girl
 // 3.4.0: Hide images in harem
@@ -228,7 +229,13 @@ const PAGE_LIST = [
     slug : '/club-champion.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
+      cssToModify : [
+        ['.girl-information'],
+        ['.nc-event-reward-info'],
+        ['.champions-over__champion-rewards-outline'],
+        ['.champions-over__champion-wrapper > .champions-over__champion-info'],
+        ['.champions-over__champion-tier-link'],
+      ],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...PLAYER_AVATAR_SELECTORS,
@@ -243,6 +250,16 @@ const PAGE_LIST = [
         ] : []),
       ],
       imagesToHideTemporarily : [],
+    },
+    values : {
+      cssToModify : [
+        ['display: flex', 'position: relative', 'left: 200px', 'top: 0px'],
+        ['top: 0px', 'left: 100px'],
+        ['display: flex', 'position: absolute', 'left: -250px', 'top: 50px', 'width: 100%'],
+        ['display: flex', 'position: relative', 'left: -250px', 'top: 100px'],
+        ['display: inline-flex', 'width: 2.5rem', 'height: 2.5rem'],
+      ],
+      imagesSrcToReplace : [],
     },
   },
   {
