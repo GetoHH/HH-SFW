@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Hentai Heroes SFW beta
+// @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.9.0
+// @version      3.10.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.10.0: Hide login background
 // 3.9.0: Hide champion's club girl avatars
 // 3.8.0: Hide login video
 // 3.7.0: Hide level up pop-up girl
@@ -115,6 +116,9 @@ const PAGE_LIST = [
       ],
       imagesSrcToHidePermanently : [
         ...PLAYER_AVATAR_SELECTORS,
+        '.background_image-style > img',
+        '.background_image-style > source',
+        '.canvas > #background',
         '.video-background > .variant-video',
         '.intro > .quest-container > #scene > .canvas > .picture',
         '.background_image-style > img',
