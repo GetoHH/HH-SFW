@@ -21,3 +21,17 @@ You can support me on [https://www.paypal.com/paypalme/GetoHH](https://www.paypa
 - removing player avatars
 - setting all girl icons to the default one
 - changing game background to have a SFW one
+
+
+### Additional setting in order to fully block the login page images
+
+You need to:
+- install the "**uBlock Origin**" extension
+- go to "**My filters**"
+- check "**Enable my custom filters**"
+- copy/paste the following line in the editor:
+
+`
+||images.hh-content.com/eggs/authentication
+`
+- press "**Apply**"
