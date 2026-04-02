@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      3.12.0
+// @version      3.12.1
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 3.12.1: Fix affection scenes
 // 3.12.0: Update README.md
 // 3.11.0: Update description
 // 3.10.0: Hide login background
@@ -74,6 +75,7 @@
  */
 const DEBUG_LIMIT_ACTIVATED = false;
 
+const HIDE_ADDS = false;
 const HIDE_BACKGROUND    = false;
 const HIDE_GIRL_AVATARS  = true;
 const HIDE_PLAYER_AVATARS = true;
@@ -109,6 +111,8 @@ const PAGE_LIST = [
       backgroundImagesSrcToHidePermanently : [
         '.bundle > #special-offer',
         '.bundle > #starter-offer',
+        '#crosspromo_show_ad > .crosspromo_banner',
+        '#crosspromo_show_localreward > .crosspromo_banner',
         '.mc-card-container > .rewards-container',
         '.product-offer-container > .product-offer-background-container',
       ],
@@ -120,7 +124,6 @@ const PAGE_LIST = [
         ...PLAYER_AVATAR_SELECTORS,
         '.background_image-style > img',
         '.background_image-style > source',
-        '.canvas > #background',
         '.video-background > .variant-video',
         '.intro > .quest-container > #scene > .canvas > .picture',
         '.background_image-style > img',
@@ -130,6 +133,11 @@ const PAGE_LIST = [
         '.prestige > .avatar',
         '#special-offer > .background-video',
         '.pwa-info-container > .install_app_girl',
+        '.lively_scene > img',
+        ...(HIDE_ADDS ? [
+          '.exo-native-widget',
+          '.ad-revive-container',
+        ] : []),
         ...(HIDE_GIRL_AVATARS ? [
           '.avatar-box > .avatar',
           '.awakening-container > .avatar',
@@ -137,7 +145,6 @@ const PAGE_LIST = [
           // '.girl-avatar-wrapper > .avatar',
           // '.girl-skills-avatar > .avatar',
         ] : []),
-        '.lively_scene > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -386,7 +393,6 @@ const PAGE_LIST = [
     slug : '/home.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [
-        '#crosspromo_show_ad > .crosspromo_banner',
         '#special-offer',
         '.news_page_content > .news_page_pic',
         '.news_thumb > .news_thumb_pic',
