@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.0.0
+// @version      4.0.1
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -10,7 +10,11 @@
 // @license      MIT
 // ==/UserScript==
 
+// TODO if all settings are off, do not run script?
+// TODO try different scripts layouts BDSM, OCD and position the SFW img relative to them
+
 // ==CHANGELOG==
+// 4.0.1: various fixes
 // 4.0.0: Add settings icon and panel
 // 3.12.1: Fix affection scenes
 // 3.12.0: Update README.md
@@ -75,9 +79,17 @@
  * CONFIGURATION
  */
 const DEBUG_LIMIT_ACTIVATED = false;
-
 const HIDE_ADDS = false;
 const HIDE_BACKGROUND = false;
+
+/**
+ * VARIABLES
+ */
+// let is required — DEBUG_ACTIVATED is reassigned to false inside checkDebugLimit()
+let DEBUG_ACTIVATED = true; // eslint-disable-line no-var
+let debugLimitCount = 0;
+let isCssInjected = false;
+let isDOMReady = false;
 
 /**
  * HHSFW SETTINGS — persisted in localStorage under the key 'HHSFW.settings'.
@@ -114,15 +126,6 @@ const HIDE_OTHER_GIRLS_AVATARS = HHSFW_DEFAULTS.HIDE_OTHER_GIRLS_AVATARS;
 const HIDE_OTHER_PLAYERS_AVATARS = HHSFW_DEFAULTS.HIDE_OTHER_PLAYERS_AVATARS;
 const HIDE_VIDEO_PREVIEWS = HHSFW_DEFAULTS.HIDE_VIDEO_PREVIEWS;
 const REPLACE_BACKGROUND = HHSFW_DEFAULTS.REPLACE_BACKGROUND;
-
-/**
- * VARIABLES
- */
-// let is required — DEBUG_ACTIVATED is reassigned to false inside checkDebugLimit()
-let DEBUG_ACTIVATED = false; // eslint-disable-line no-var
-let debugLimitCount = 0;
-let isCssInjected = false;
-let isDOMReady = false;
 
 /**
  * CONSTANTS
@@ -474,8 +477,8 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_EVENT_GIRLS_AVATARS ? ['.labyrinth-girl > .avatar',] : []),
-        ...(HIDE_OTHER_GIRLS_AVATARS ? [
+        ...(HIDE_EVENT_GIRLS_AVATARS ? [
+          '.labyrinth-girl > .avatar',
           '.shop-labyrinth-girl > .avatar',
         ] : []),
       ],
@@ -506,7 +509,7 @@ const PAGE_LIST = [
       cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
-        ...(HIDE_OTHER_GIRLS_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
+        ...(HIDE_EVENT_GIRLS_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
       ],
       imagesToHideTemporarily : [],
     },
@@ -1020,11 +1023,11 @@ function checkDebugLimit() {
  * Unified page processing loop — runs all selectors for the current page.
  * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
  */
-function runAllProcesses() {
-  ACTIVE_PAGES.forEach(({ name, selectors, slug, values }) => {
+function runAllHidingProcesses() {
+  ACTIVE_PAGES.forEach(({name, selectors, slug, values}) => {
     if (DEBUG_ACTIVATED) {
       console.log('> ')
-      console.log(`> PROCESSING ${name} PAGE with SLUG: ${slug}`)
+      console.log(`> HIDING MEDIAS IN ${name} PAGE with SLUG: ${slug}`)
     }
     const {
       backgroundImagesSrcToHidePermanently,
@@ -1051,6 +1054,27 @@ function runAllProcesses() {
   });
 }
 
+/**
+ * Unified page processing loop — runs all selectors for the current page.
+ * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
+ */
+function runAllRevealingProcesses() {
+  ACTIVE_PAGES.forEach(({name, selectors, slug}) => {
+    if (DEBUG_ACTIVATED) {
+      console.log('> ')
+      console.log(`> REVEALING MEDIAS IN ${name} PAGE with SLUG: ${slug}`)
+    }
+    const {
+      imagesToHideTemporarily,
+    } = selectors;
+
+    // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
+    if (isDOMReady) {
+      setElementsDisplay(imagesToHideTemporarily, 'block');
+    }
+  });
+}
+
 // Add event listener for clicks
 document.addEventListener('click', function (event) {
   if (
@@ -1064,9 +1088,7 @@ document.addEventListener('click', function (event) {
       console.log('> ');
       console.log('> SPECIAL BUTTON CLICKED (IMG PROCESSING STOPPED)');
     }
-    if (window.location.href.includes('/quest/')) {
-      setElementsDisplay(['.canvas > .picture'], 'block');
-    }
+    runAllRevealingProcesses();
   }
 });
 
@@ -1089,13 +1111,21 @@ function saveHhsfwSettings() {
  */
 function injectHhsButtonSibling() {
   // Only inject on the home page
-  if (!window.location.href.includes('/home.html')) return;
+  if (!window.location.href.includes('/home.html')) {
+    return;
+  }
 
   const container = document.getElementById('contains_all');
-  if (!container) return;
+  if (!container) {
+    if (DEBUG_ACTIVATED) {
+      console.log('> #contains_all not found — not injecting HHSFW logo + settings panel');
+    }
+    return;
+  }
 
+  const ocdButton = document.getElementById('hhsButton');
   if (DEBUG_ACTIVATED) {
-    console.log('> #contains_all found — injecting HHSFW logo + settings panel');
+    console.log('> ocdButton:', ocdButton);
   }
 
   // Ensure the container is a positioning context
@@ -1109,7 +1139,7 @@ function injectHhsButtonSibling() {
     #hhsfwPanel {
       display: none;
       position: absolute;
-      right: 195px;
+      right: 180px;
       top: 140px;
       z-index: 100;
       background: #1a1a2e;
@@ -1192,12 +1222,27 @@ function injectHhsButtonSibling() {
     }
     #hhsfwToggle {
       position: absolute;
-      right: 200px;
-      top: 100px;
-      width: 35px;
-      height: 35px;
+      right: 180px;
       cursor: pointer;
+      background-size: contain;
       z-index: 5;
+    }
+    @media (min-width: 1026px) {
+      #hhsfwToggle {
+        height: 35px;
+        width: 35px;
+        top: 100px;
+        right: 210px;
+      }
+    }
+    @media (max-width: 1025px) {
+      #hhsfwToggle {
+        height: 64px;
+        width: 64px;
+        top: 100px;
+        right: 180px;
+        transform: scale(0.7)
+      }
     }
   `;
   document.head.appendChild(style);
@@ -1301,7 +1346,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('> DOMContentLoaded');
   }
   isDOMReady = true;
-  runAllProcesses();
+  runAllHidingProcesses();
 });
 
 // All resources (including images) have fully loaded — safe to query elements
@@ -1311,11 +1356,13 @@ window.addEventListener('load', function () {
   if (DEBUG_ACTIVATED) {
     console.log('> ');
     console.log('> window load');
+    setTimeout(() => {
+      injectHhsButtonSibling();
+    }, 1000); // ocdButton cannot be found under 300ms
   }
-  injectHhsButtonSibling();
 });
 
 // Run immediately at script start — CSS injection only (isDOMReady is false, DOM manipulation is skipped)
 checkDebugLimit();
-runAllProcesses();
+runAllHidingProcesses();
 isCssInjected = true;
