@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.0.2
+// @version      4.1.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,7 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
-// 4.0.2: better position for the toggle, simplified and optimized code
+// 4.1.0: show NSFW icon when every settings are false
 // 4.0.1: various fixes
 // 4.0.0: Add settings icon and panel
 // 3.12.1: Fix affection scenes
@@ -1393,7 +1393,7 @@ function injectHhsButtonSibling() {
   // ── Toggle button (logo image) ────────────────────────────────────────────
   const img = document.createElement('img');
   img.id = 'hhsfwToggle';
-  img.src = 'https://i.postimg.cc/ZqbRwjKH/SFW-logo-removebg-preview.png';
+  img.src = isAnySettingEnabled() ? 'https://i.postimg.cc/d3QRs43j/SFW_logo.png' : 'https://i.postimg.cc/7hP1HmhM/NSFW_logo.png';
   img.title = 'HHSFW Settings';
   container.appendChild(img);
 
