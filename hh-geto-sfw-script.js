@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.0
+// @version      4.1.1
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.1: fix panel position
 // 4.1.0: show NSFW icon when every settings are false
 // 4.0.1: various fixes
 // 4.0.0: Add settings icon and panel
@@ -1247,8 +1248,6 @@ function injectHhsButtonSibling() {
     #hhsfwPanel {
       display: none;
       position: absolute;
-      right: 180px;
-      top: 140px;
       z-index: 100;
       background: #1a1a2e;
       border: 1px solid #e91e8c;
@@ -1420,7 +1419,28 @@ function injectHhsButtonSibling() {
 
   // ── Event listeners ───────────────────────────────────────────────────────
   img.addEventListener('click', function () {
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'none') {
+      // Measure panel width before showing it
+      panel.style.visibility = 'hidden';
+      panel.style.display = 'block';
+
+      // img.offsetTop/offsetLeft are already relative to #contains_all
+      // (the nearest positioned ancestor), so they map directly to
+      // `top`/`left` values for `position: absolute` inside that container.
+      // Bottom of toggle = offsetTop + offsetHeight
+      // Left of panel so its right edge aligns with toggle's left edge:
+      //   panelLeft = img.offsetLeft - panel.offsetWidth
+      const panelTop  = img.offsetTop  + img.offsetHeight;
+      const panelLeft = img.offsetLeft - panel.offsetWidth;
+
+      panel.style.top   = panelTop  + 'px';
+      panel.style.left  = panelLeft + 'px';
+      panel.style.right = '';
+
+      panel.style.visibility = '';
+    } else {
+      panel.style.display = 'none';
+    }
   });
 
   document.getElementById('hhsfwClose').addEventListener('click', function () {
