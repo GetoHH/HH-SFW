@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.0.1
+// @version      4.0.2
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -10,10 +10,8 @@
 // @license      MIT
 // ==/UserScript==
 
-// TODO if all settings are off, do not run script?
-// TODO try different scripts layouts BDSM, OCD and position the SFW img relative to them
-
 // ==CHANGELOG==
+// 4.0.2: better position for the toggle, simplified and optimized code
 // 4.0.1: various fixes
 // 4.0.0: Add settings icon and panel
 // 3.12.1: Fix affection scenes
@@ -120,12 +118,15 @@ const HHSFW_DEFAULTS = {
   }
 })();
 
-const HIDE_EVENT_GIRLS_AVATARS = HHSFW_DEFAULTS.HIDE_EVENT_GIRLS_AVATARS;
-const HIDE_HAREM_SELECTED_GIRL_AVATAR = HHSFW_DEFAULTS.HIDE_HAREM_SELECTED_GIRL_AVATAR;
-const HIDE_OTHER_GIRLS_AVATARS = HHSFW_DEFAULTS.HIDE_OTHER_GIRLS_AVATARS;
-const HIDE_OTHER_PLAYERS_AVATARS = HHSFW_DEFAULTS.HIDE_OTHER_PLAYERS_AVATARS;
-const HIDE_VIDEO_PREVIEWS = HHSFW_DEFAULTS.HIDE_VIDEO_PREVIEWS;
-const REPLACE_BACKGROUND = HHSFW_DEFAULTS.REPLACE_BACKGROUND;
+// Destructure once so PAGE_LIST can reference these as plain identifiers.
+const {
+  HIDE_EVENT_GIRLS_AVATARS,
+  HIDE_HAREM_SELECTED_GIRL_AVATAR,
+  HIDE_OTHER_GIRLS_AVATARS,
+  HIDE_OTHER_PLAYERS_AVATARS,
+  HIDE_VIDEO_PREVIEWS,
+  REPLACE_BACKGROUND,
+} = HHSFW_DEFAULTS;
 
 /**
  * CONSTANTS
@@ -143,9 +144,9 @@ const VIDEO_PREVIEW_SELECTORS = [
   '.lse_puzzle_wrapper > .lively_scene_image',
 ];
 
-// Default values object — used as fallback for pages that don't define custom values.
-// imagesSrcToReplace must be '' (not []) so processImagesSrcToReplace's !newSrc guard fires.
-const DEFAULT_VALUES = {cssToModify : [], imagesSrcToReplace : ''};
+// Fallback values for pages that don't define their own — imagesSrcToReplace must be ''
+// (not []) so processImagesSrcToReplace's !newSrc guard fires correctly.
+const DEFAULT_VALUES = { cssToModify: [], imagesSrcToReplace: '' };
 
 const PAGE_LIST = [
   {
@@ -936,7 +937,9 @@ const ACTIVE_PAGES = PAGE_LIST
  * Unified helper for both display:none and background-image:none cases.
  */
 function injectCssHideRule(selectorsArray, cssProperty) {
-  if (selectorsArray.length === 0) return;
+  if (selectorsArray.length === 0) {
+    return;
+  }
   if (DEBUG_ACTIVATED) {
     console.log(`> INJECTING CSS HIDE RULE: ${cssProperty}`);
   }
@@ -949,7 +952,9 @@ function injectCssHideRule(selectorsArray, cssProperty) {
  * Injects arbitrary CSS rules onto the given selectors.
  */
 function modifyCssOfSelectors(selectorsArray, styleRules) {
-  if (selectorsArray.length === 0) return;
+  if (selectorsArray.length === 0) {
+    return;
+  }
   if (DEBUG_ACTIVATED) {
     console.log('> PROCESSING MODIFY CSS OF SELECTORS');
   }
@@ -962,7 +967,9 @@ function modifyCssOfSelectors(selectorsArray, styleRules) {
  * Replaces the src of all matched elements with newSrc.
  */
 function processImagesSrcToReplace(selectorsArray, newSrc) {
-  if (selectorsArray.length === 0 || !newSrc) return;
+  if (selectorsArray.length === 0 || !newSrc) {
+    return;
+  }
   if (DEBUG_ACTIVATED) {
     console.log('> PROCESSING IMAGES SRC TO REPLACE');
   }
@@ -970,16 +977,11 @@ function processImagesSrcToReplace(selectorsArray, newSrc) {
   if (DEBUG_ACTIVATED) {
     console.log('> nb of elements:', elements.length);
   }
-  let nbOfElementsProcessed = 0;
   elements.forEach((element) => {
-    if (element && element.src) {
+    if (element.src) {
       element.src = newSrc;
-      nbOfElementsProcessed++;
     }
   });
-  if (DEBUG_ACTIVATED) {
-    console.log('> nb of elements processed:', nbOfElementsProcessed);
-  }
 }
 
 /**
@@ -987,36 +989,40 @@ function processImagesSrcToReplace(selectorsArray, newSrc) {
  * Used for temporarily hiding (none) or showing again (block) elements.
  */
 function setElementsDisplay(selectorsArray, displayValue) {
-  if (selectorsArray.length === 0) return;
+  if (selectorsArray.length === 0) {
+    return;
+  }
   if (DEBUG_ACTIVATED) {
     console.log(`> SETTING ELEMENTS DISPLAY: ${displayValue}`);
   }
-  //TODO improve with style
   const elements = document.querySelectorAll(selectorsArray.join(', '));
   if (DEBUG_ACTIVATED) {
     console.log('> nb of elements:', elements.length);
   }
-  let nbOfElementsProcessed = 0;
   elements.forEach((element) => {
-    if (element) {
-      element.style.display = displayValue;
-      nbOfElementsProcessed++;
-    }
+    element.style.display = displayValue;
   });
-  if (DEBUG_ACTIVATED) {
-    console.log('> nb of elements processed:', nbOfElementsProcessed);
-  }
 }
 
 /**
  * Increments the debug limit counter and disables debug logging once threshold is reached.
  */
 function checkDebugLimit() {
-  if (!DEBUG_LIMIT_ACTIVATED) return;
+  if (!DEBUG_LIMIT_ACTIVATED) {
+    return;
+  }
   debugLimitCount++;
   if (debugLimitCount > 3) {
     DEBUG_ACTIVATED = false;
   }
+}
+
+/**
+ * Returns true if at least one user-controlled setting is enabled.
+ * Used to short-circuit runAllHidingProcesses when everything is off.
+ */
+function isAnySettingEnabled() {
+  return Object.values(HHSFW_DEFAULTS).some(Boolean);
 }
 
 /**
@@ -1059,19 +1065,15 @@ function runAllHidingProcesses() {
  * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
  */
 function runAllRevealingProcesses() {
-  ACTIVE_PAGES.forEach(({name, selectors, slug}) => {
+  if (!isDOMReady) {
+    return;
+  }
+  ACTIVE_PAGES.forEach(({ name, selectors, slug }) => {
     if (DEBUG_ACTIVATED) {
-      console.log('> ')
-      console.log(`> REVEALING MEDIAS IN ${name} PAGE with SLUG: ${slug}`)
+      console.log('> ');
+      console.log(`> REVEALING MEDIAS IN ${name} PAGE with SLUG: ${slug}`);
     }
-    const {
-      imagesToHideTemporarily,
-    } = selectors;
-
-    // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
-    if (isDOMReady) {
-      setElementsDisplay(imagesToHideTemporarily, 'block');
-    }
+    setElementsDisplay(selectors.imagesToHideTemporarily, 'block');
   });
 }
 
@@ -1098,7 +1100,8 @@ document.addEventListener('click', function (event) {
 function saveHhsfwSettings() {
   try {
     localStorage.setItem('HHSFW.settings', JSON.stringify(HHSFW_DEFAULTS));
-  } catch (e) { /* localStorage unavailable — skip silently */
+  } catch (e) {
+    /* localStorage unavailable — skip silently */
   }
 }
 
@@ -1134,6 +1137,111 @@ function injectHhsButtonSibling() {
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
+  // Media query breakpoints — mirrors OCD.js constants
+  const mediaDesktop = '@media only screen and (min-width: 1026px)';
+  const mediaMobile  = '@media only screen and (max-width: 1025px)';
+
+  // Detect sibling scripts that affect layout, same way OCD.js does.
+  // Store the element directly to avoid a second querySelector later.
+  const hhPlusPlusButton = document.querySelector('.hh-plus-plus-config-button');
+  const hasHhPlusPlusButton = hhPlusPlusButton !== null;
+
+  // Detect OCD.js "customizedHomeScreen" setting from its localStorage key
+  let customizedHomeScreen = false;
+  try {
+    customizedHomeScreen = localStorage.getItem('HHS.customizedHomeScreen') === 'true';
+  } catch (e) {
+    /* localStorage unavailable — keep false */
+  }
+
+  // Build the sheet-based dynamic stylesheet, mirroring every #hhsButton
+  // rule from OCD.js 1-for-1, but targeting #hhsfwToggle instead.
+  const dynamicStyle = document.createElement('style');
+  document.head.appendChild(dynamicStyle);
+  const sheet = dynamicStyle.sheet;
+
+  // ── Base rule (always applied) ────────────────────────────────────────────
+  // Mirrors: sheet.insertRule(`#hhsButton { height:35px; position:absolute;
+  //   z-index:10; filter:drop-shadow(0px 0px 5px white); }`)
+  sheet.insertRule(`#hhsfwToggle {
+    height: 35px;
+    position: absolute;
+    z-index: 10;
+    filter: drop-shadow(0px 0px 5px white);
+    cursor: pointer;
+  }`);
+
+  // ── Positional rules — derived from sibling button positions at runtime ──────
+  //
+  // Priority order (mirrors the way OCD.js stacks its own buttons):
+  //   1. ocdButton (#hhsButton) is present  → position relative to it
+  //   2. .hh-plus-plus-config-button present → position relative to it
+  //   3. Neither present                     → fall back to static CSS rules
+  //
+  // For cases 1 & 2 we read the sibling's computed position inside the shared
+  // #contains_all container (which is already a positioning context at this
+  // point) and apply inline styles directly on the img element.  Inline styles
+  // are set after the img is appended to the DOM (see the positioning block
+  // below the img creation).  We stash the reference and a flag here so the
+  // later block knows what to do.
+
+  let positionAnchor = null; // Element whose position we'll mirror
+  let useStaticCss   = false;
+
+  if (ocdButton) {
+    // Case 1: OCD.js button is in the DOM — anchor to it
+    positionAnchor = ocdButton;
+    if (DEBUG_ACTIVATED) {
+      console.log('> [HHSFW] positioning relative to #hhsButton');
+    }
+  } else if (hasHhPlusPlusButton) {
+    // Case 2: HH++ button is in the DOM — anchor to it
+    positionAnchor = hhPlusPlusButton;
+    if (DEBUG_ACTIVATED) {
+      console.log('> [HHSFW] positioning relative to .hh-plus-plus-config-button');
+    }
+  } else {
+    // Case 3: no sibling buttons found — use static responsive CSS
+    useStaticCss = true;
+    if (DEBUG_ACTIVATED) {
+      console.log('> [HHSFW] no sibling button found — using static CSS fallback');
+    }
+  }
+
+  if (useStaticCss) {
+    // Static fallback — mirrors the OCD.js rules for the no-sibling-button case
+    if (customizedHomeScreen) {
+      // OCD branch: NO .hh-plus-plus-config-button AND customizedHomeScreen ON
+      sheet.insertRule(`${mediaDesktop} {
+        #hhsfwToggle {
+          right: 42px;
+          top: 100px;
+        }
+      }`);
+      sheet.insertRule(`${mediaMobile} {
+        #hhsfwToggle {
+          right: 125px;
+          top: 85px;
+        }
+      }`);
+    } else {
+      // OCD branch: NO .hh-plus-plus-config-button AND customizedHomeScreen OFF
+      sheet.insertRule(`${mediaDesktop} {
+        #hhsfwToggle {
+          right: 42px;
+          top: 90px;
+        }
+      }`);
+      sheet.insertRule(`${mediaMobile} {
+        #hhsfwToggle {
+          right: 130px;
+          top: 85px;
+        }
+      }`);
+    }
+  }
+
+  // ── Static panel + UI styles (unchanged) ─────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `
     #hhsfwPanel {
@@ -1220,30 +1328,6 @@ function injectHhsButtonSibling() {
       border-top: 1px solid #333;
       padding-top: 6px;
     }
-    #hhsfwToggle {
-      position: absolute;
-      right: 180px;
-      cursor: pointer;
-      background-size: contain;
-      z-index: 5;
-    }
-    @media (min-width: 1026px) {
-      #hhsfwToggle {
-        height: 35px;
-        width: 35px;
-        top: 100px;
-        right: 210px;
-      }
-    }
-    @media (max-width: 1025px) {
-      #hhsfwToggle {
-        height: 64px;
-        width: 64px;
-        top: 100px;
-        right: 180px;
-        transform: scale(0.7)
-      }
-    }
   `;
   document.head.appendChild(style);
 
@@ -1313,6 +1397,27 @@ function injectHhsButtonSibling() {
   img.title = 'HHSFW Settings';
   container.appendChild(img);
 
+  // ── Anchor-based inline positioning (cases 1 & 2) ────────────────────────
+  // offsetTop / offsetLeft are already relative to offsetParent, which is
+  // #contains_all (a positioned element) — so they map directly to the
+  // `top` / `left` values needed for `position: absolute` without any rect
+  // arithmetic.  `right` is derived as containerWidth - anchorLeft - anchorWidth
+  // then shifted 40px further left.
+  if (positionAnchor) {
+    const anchorTop      = positionAnchor.offsetTop;
+    const anchorLeft     = positionAnchor.offsetLeft;
+    const anchorWidth    = positionAnchor.offsetWidth;
+    const containerWidth = container.offsetWidth;
+
+    // Convert the anchor's left edge to a `right` value, then shift 40px left
+    const anchorRight = containerWidth - anchorLeft - anchorWidth;
+
+    const topOffset = hasHhPlusPlusButton && !ocdButton ? 70 : 0;
+    const rightOffset = ocdButton ? 70 : 0;
+    img.style.top   = `${anchorTop + topOffset}px`;
+    img.style.right = `${anchorRight + rightOffset}px`;
+  }
+
   // ── Event listeners ───────────────────────────────────────────────────────
   img.addEventListener('click', function () {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -1345,8 +1450,11 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('> ');
     console.log('> DOMContentLoaded');
   }
-  isDOMReady = true;
-  runAllHidingProcesses();
+
+  if (isAnySettingEnabled()) {
+    isDOMReady = true;
+    runAllHidingProcesses();
+  }
 });
 
 // All resources (including images) have fully loaded — safe to query elements
@@ -1356,13 +1464,18 @@ window.addEventListener('load', function () {
   if (DEBUG_ACTIVATED) {
     console.log('> ');
     console.log('> window load');
-    setTimeout(() => {
-      injectHhsButtonSibling();
-    }, 1000); // ocdButton cannot be found under 300ms
   }
+
+  // Delay so sibling scripts (OCD.js, HH++) have time to inject their
+  // own buttons into the DOM before we read their positions.
+  setTimeout(function () {
+    injectHhsButtonSibling();
+  }, 600);
 });
 
 // Run immediately at script start — CSS injection only (isDOMReady is false, DOM manipulation is skipped)
-checkDebugLimit();
-runAllHidingProcesses();
-isCssInjected = true;
+if (isAnySettingEnabled()) {
+  checkDebugLimit();
+  runAllHidingProcesses();
+  isCssInjected = true;
+}
