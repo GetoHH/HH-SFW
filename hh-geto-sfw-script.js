@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.1
+// @version      4.1.2
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.2: fix button position
 // 4.1.1: fix panel position
 // 4.1.0: show NSFW icon when every settings are false
 // 4.0.1: various fixes
@@ -147,7 +148,7 @@ const VIDEO_PREVIEW_SELECTORS = [
 
 // Fallback values for pages that don't define their own — imagesSrcToReplace must be ''
 // (not []) so processImagesSrcToReplace's !newSrc guard fires correctly.
-const DEFAULT_VALUES = { cssToModify: [], imagesSrcToReplace: '' };
+const DEFAULT_VALUES = {cssToModify : [], imagesSrcToReplace : ''};
 
 const PAGE_LIST = [
   {
@@ -1069,7 +1070,7 @@ function runAllRevealingProcesses() {
   if (!isDOMReady) {
     return;
   }
-  ACTIVE_PAGES.forEach(({ name, selectors, slug }) => {
+  ACTIVE_PAGES.forEach(({name, selectors, slug}) => {
     if (DEBUG_ACTIVATED) {
       console.log('> ');
       console.log(`> REVEALING MEDIAS IN ${name} PAGE with SLUG: ${slug}`);
@@ -1106,6 +1107,11 @@ function saveHhsfwSettings() {
   }
 }
 
+function isOCDLoaded() {
+  const ocdLocalStorageKey = localStorage.getItem('HHS.sideAdventureWorldID');
+  return ocdLocalStorageKey !== 'sfw';
+}
+
 /**
  * Builds and injects the HHSFW settings panel and its toggle button into
  * #contains_all. Only runs on /home.html.
@@ -1131,6 +1137,10 @@ function injectHhsButtonSibling() {
   if (DEBUG_ACTIVATED) {
     console.log('> ocdButton:', ocdButton);
   }
+  const isOcdLoaded = isOCDLoaded();
+  if (DEBUG_ACTIVATED) {
+    console.log('> isOcdLoaded:', isOcdLoaded);
+  }
 
   // Ensure the container is a positioning context
   if (window.getComputedStyle(container).position === 'static') {
@@ -1138,14 +1148,16 @@ function injectHhsButtonSibling() {
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
-  // Media query breakpoints — mirrors OCD.js constants
+  // Media query breakpoints
   const mediaDesktop = '@media only screen and (min-width: 1026px)';
-  const mediaMobile  = '@media only screen and (max-width: 1025px)';
+  const mediaMobile = '@media only screen and (max-width: 1025px)';
 
-  // Detect sibling scripts that affect layout, same way OCD.js does.
+  // Detect sibling scripts that affect layout.
   // Store the element directly to avoid a second querySelector later.
   const hhPlusPlusButton = document.querySelector('.hh-plus-plus-config-button');
-  const hasHhPlusPlusButton = hhPlusPlusButton !== null;
+  if (DEBUG_ACTIVATED) {
+    console.log('> hhPlusPlusButton:', hhPlusPlusButton);
+  }
 
   // Detect OCD.js "customizedHomeScreen" setting from its localStorage key
   let customizedHomeScreen = false;
@@ -1154,89 +1166,79 @@ function injectHhsButtonSibling() {
   } catch (e) {
     /* localStorage unavailable — keep false */
   }
+  if (DEBUG_ACTIVATED) {
+    console.log('> customizedHomeScreen:', customizedHomeScreen);
+  }
 
-  // Build the sheet-based dynamic stylesheet, mirroring every #hhsButton
-  // rule from OCD.js 1-for-1, but targeting #hhsfwToggle instead.
   const dynamicStyle = document.createElement('style');
   document.head.appendChild(dynamicStyle);
   const sheet = dynamicStyle.sheet;
 
-  // ── Base rule (always applied) ────────────────────────────────────────────
-  // Mirrors: sheet.insertRule(`#hhsButton { height:35px; position:absolute;
-  //   z-index:10; filter:drop-shadow(0px 0px 5px white); }`)
   sheet.insertRule(`#hhsfwToggle {
     height: 35px;
     position: absolute;
-    z-index: 10;
+    z-index: 5;
     filter: drop-shadow(0px 0px 5px white);
     cursor: pointer;
   }`);
 
-  // ── Positional rules — derived from sibling button positions at runtime ──────
-  //
-  // Priority order (mirrors the way OCD.js stacks its own buttons):
-  //   1. ocdButton (#hhsButton) is present  → position relative to it
-  //   2. .hh-plus-plus-config-button present → position relative to it
-  //   3. Neither present                     → fall back to static CSS rules
-  //
-  // For cases 1 & 2 we read the sibling's computed position inside the shared
-  // #contains_all container (which is already a positioning context at this
-  // point) and apply inline styles directly on the img element.  Inline styles
-  // are set after the img is appended to the DOM (see the positioning block
-  // below the img creation).  We stash the reference and a flag here so the
-  // later block knows what to do.
-
-  let positionAnchor = null; // Element whose position we'll mirror
-  let useStaticCss   = false;
-
-  if (ocdButton) {
-    // Case 1: OCD.js button is in the DOM — anchor to it
-    positionAnchor = ocdButton;
-    if (DEBUG_ACTIVATED) {
-      console.log('> [HHSFW] positioning relative to #hhsButton');
-    }
-  } else if (hasHhPlusPlusButton) {
-    // Case 2: HH++ button is in the DOM — anchor to it
-    positionAnchor = hhPlusPlusButton;
-    if (DEBUG_ACTIVATED) {
-      console.log('> [HHSFW] positioning relative to .hh-plus-plus-config-button');
+  if (customizedHomeScreen && ocdButton) {
+    if (hhPlusPlusButton) {
+      sheet.insertRule(`${mediaDesktop} { 
+        #hhsfwToggle {
+          right: 50px;
+          top: 150px;
+        }
+      }`);
+      sheet.insertRule(`${mediaMobile} {
+        #hhsfwToggle {
+          right: 62px;
+          top: 165px;
+        }
+      }`);
+    } else {
+      sheet.insertRule(`${mediaDesktop} { 
+        #hhsfwToggle {
+          right: 41px;
+          top: 150px;
+        }
+      }`);
+      sheet.insertRule(`${mediaMobile} {
+        #hhsfwToggle {
+          right: 45px;
+          top: 165px;
+        }
+      }`);
     }
   } else {
-    // Case 3: no sibling buttons found — use static responsive CSS
-    useStaticCss = true;
-    if (DEBUG_ACTIVATED) {
-      console.log('> [HHSFW] no sibling button found — using static CSS fallback');
-    }
-  }
-
-  if (useStaticCss) {
-    // Static fallback — mirrors the OCD.js rules for the no-sibling-button case
-    if (customizedHomeScreen) {
-      // OCD branch: NO .hh-plus-plus-config-button AND customizedHomeScreen ON
+    if (hhPlusPlusButton) {
       sheet.insertRule(`${mediaDesktop} {
         #hhsfwToggle {
-          right: 42px;
-          top: 100px;
+          right: 50px;
+          top: 110px;
+        }
+      }`);
+      sheet.insertRule(`${mediaMobile} {
+        #hhsfwToggle {
+          right: 50px;
+          top: 160px;
+          width: 64px !important;
+          height: 64px !important;
+        }
+      }`);
+    } else {
+      sheet.insertRule(`${mediaDesktop} {
+        #hhsfwToggle {
+          right: 40px;
+          top: 85px;
         }
       }`);
       sheet.insertRule(`${mediaMobile} {
         #hhsfwToggle {
           right: 125px;
           top: 85px;
-        }
-      }`);
-    } else {
-      // OCD branch: NO .hh-plus-plus-config-button AND customizedHomeScreen OFF
-      sheet.insertRule(`${mediaDesktop} {
-        #hhsfwToggle {
-          right: 42px;
-          top: 90px;
-        }
-      }`);
-      sheet.insertRule(`${mediaMobile} {
-        #hhsfwToggle {
-          right: 130px;
-          top: 85px;
+          width: 38px !important;
+          height: 38px !important;
         }
       }`);
     }
@@ -1248,7 +1250,7 @@ function injectHhsButtonSibling() {
     #hhsfwPanel {
       display: none;
       position: absolute;
-      z-index: 100;
+      z-index: 99;
       background: #1a1a2e;
       border: 1px solid #e91e8c;
       border-radius: 8px;
@@ -1396,27 +1398,6 @@ function injectHhsButtonSibling() {
   img.title = 'HHSFW Settings';
   container.appendChild(img);
 
-  // ── Anchor-based inline positioning (cases 1 & 2) ────────────────────────
-  // offsetTop / offsetLeft are already relative to offsetParent, which is
-  // #contains_all (a positioned element) — so they map directly to the
-  // `top` / `left` values needed for `position: absolute` without any rect
-  // arithmetic.  `right` is derived as containerWidth - anchorLeft - anchorWidth
-  // then shifted 40px further left.
-  if (positionAnchor) {
-    const anchorTop      = positionAnchor.offsetTop;
-    const anchorLeft     = positionAnchor.offsetLeft;
-    const anchorWidth    = positionAnchor.offsetWidth;
-    const containerWidth = container.offsetWidth;
-
-    // Convert the anchor's left edge to a `right` value, then shift 40px left
-    const anchorRight = containerWidth - anchorLeft - anchorWidth;
-
-    const topOffset = hasHhPlusPlusButton && !ocdButton ? 70 : 0;
-    const rightOffset = ocdButton ? 70 : 0;
-    img.style.top   = `${anchorTop + topOffset}px`;
-    img.style.right = `${anchorRight + rightOffset}px`;
-  }
-
   // ── Event listeners ───────────────────────────────────────────────────────
   img.addEventListener('click', function () {
     if (panel.style.display === 'none') {
@@ -1430,11 +1411,11 @@ function injectHhsButtonSibling() {
       // Bottom of toggle = offsetTop + offsetHeight
       // Left of panel so its right edge aligns with toggle's left edge:
       //   panelLeft = img.offsetLeft - panel.offsetWidth
-      const panelTop  = img.offsetTop  + img.offsetHeight;
+      const panelTop = img.offsetTop + img.offsetHeight;
       const panelLeft = img.offsetLeft - panel.offsetWidth;
 
-      panel.style.top   = panelTop  + 'px';
-      panel.style.left  = panelLeft + 'px';
+      panel.style.top = panelTop + 'px';
+      panel.style.left = panelLeft + 'px';
       panel.style.right = '';
 
       panel.style.visibility = '';
@@ -1490,7 +1471,7 @@ window.addEventListener('load', function () {
   // own buttons into the DOM before we read their positions.
   setTimeout(function () {
     injectHhsButtonSibling();
-  }, 600);
+  }, 500);
 });
 
 // Run immediately at script start — CSS injection only (isDOMReady is false, DOM manipulation is skipped)
@@ -1499,3 +1480,5 @@ if (isAnySettingEnabled()) {
   runAllHidingProcesses();
   isCssInjected = true;
 }
+
+localStorage.setItem('HHS.sideAdventureWorldID', "sfw");
