@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.2
+// @version      4.1.3
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.3: fix button position
 // 4.1.2: fix button position
 // 4.1.1: fix panel position
 // 4.1.0: show NSFW icon when every settings are false
@@ -1107,11 +1108,6 @@ function saveHhsfwSettings() {
   }
 }
 
-function isOCDLoaded() {
-  const ocdLocalStorageKey = localStorage.getItem('HHS.sideAdventureWorldID');
-  return ocdLocalStorageKey !== 'sfw';
-}
-
 /**
  * Builds and injects the HHSFW settings panel and its toggle button into
  * #contains_all. Only runs on /home.html.
@@ -1131,15 +1127,6 @@ function injectHhsButtonSibling() {
       console.log('> #contains_all not found — not injecting HHSFW logo + settings panel');
     }
     return;
-  }
-
-  const ocdButton = document.getElementById('hhsButton');
-  if (DEBUG_ACTIVATED) {
-    console.log('> ocdButton:', ocdButton);
-  }
-  const isOcdLoaded = isOCDLoaded();
-  if (DEBUG_ACTIVATED) {
-    console.log('> isOcdLoaded:', isOcdLoaded);
   }
 
   // Ensure the container is a positioning context
@@ -1182,7 +1169,7 @@ function injectHhsButtonSibling() {
     cursor: pointer;
   }`);
 
-  if (customizedHomeScreen && ocdButton) {
+  if (customizedHomeScreen) {
     if (hhPlusPlusButton) {
       sheet.insertRule(`${mediaDesktop} { 
         #hhsfwToggle {
@@ -1480,5 +1467,3 @@ if (isAnySettingEnabled()) {
   runAllHidingProcesses();
   isCssInjected = true;
 }
-
-localStorage.setItem('HHS.sideAdventureWorldID', "sfw");
