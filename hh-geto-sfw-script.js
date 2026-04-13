@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.8
+// @version      4.2.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.2.0: refactor of imagesSrcToReplace and cleanup
 // 4.1.8: fix champions css due to display none to opacity 0 change
 // 4.1.7: revert background-image css processing back to background-image instead of opacity
 // 4.1.6: refactor setElementsDisplay to modifyElementsStyle
@@ -152,10 +153,6 @@ const VIDEO_PREVIEW_SELECTORS = [
   '.lse_puzzle_wrapper > .lively_scene_image',
 ];
 
-// Fallback values for pages that don't define their own — imagesSrcToReplace must be ''
-// (not []) so processImagesSrcToReplace's !newSrc guard fires correctly.
-const DEFAULT_VALUES = {cssToModify : [], imagesSrcToReplace : ''};
-
 const PAGE_LIST = [
   {
     name : 'ALL',
@@ -168,10 +165,6 @@ const PAGE_LIST = [
         '#crosspromo_show_localreward > .crosspromo_banner',
         '.mc-card-container > .rewards-container',
         '.product-offer-container > .product-offer-background-container',
-      ],
-      cssToModify : [],
-      imagesSrcToReplace : [
-        ...((REPLACE_BACKGROUND && !HIDE_BACKGROUND) ? BACKGROUND_SELECTORS : []),
       ],
       imagesSrcToHidePermanently : [
         '.background_image-style > img',
@@ -202,21 +195,12 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      // Only supply the replacement URL when the setting is enabled.
-      // processImagesSrcToReplace() guards on !newSrc, so an empty string
-      // ensures no replacement happens even if a selector somehow slips through.
-      imagesSrcToReplace : REPLACE_BACKGROUND ? NEW_BACKGROUND_URL : '',
-    },
   },
   {
     name : 'ACTIVITIES',
     slug : '/activities.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : ['.contest > .contest_header'],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.mission_image > img',
         '.pop_thumb > img',
@@ -232,8 +216,6 @@ const PAGE_LIST = [
     slug : '/adventures.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : ['.adventure-card-container'],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
@@ -243,8 +225,6 @@ const PAGE_LIST = [
     slug : '/champions/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.champions-over__champion-wrapper > .champions-over__champion-image',
         '.champions-over__champion-wrapper > .champions-over__champion-dialog-box',
@@ -257,18 +237,12 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'CHARACTERS',
     slug : '/characters/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_HAREM_SELECTED_GIRL_AVATAR ? [
           '.avatar-box > .avatar',
@@ -283,8 +257,6 @@ const PAGE_LIST = [
     slug : '/club-champion.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.attacker-preview > .character',
         '.defender-preview > img',
@@ -303,18 +275,12 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : [],
-    },
   },
   {
     name : 'CLUBS',
     slug : '/clubs.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_PLAYERS_AVATARS ? ['.avatar'] : []),
       ],
@@ -326,8 +292,6 @@ const PAGE_LIST = [
     slug : '/edit-labyrinth-team.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
@@ -339,8 +303,6 @@ const PAGE_LIST = [
     slug : '/edit-team.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
@@ -352,8 +314,6 @@ const PAGE_LIST = [
     slug : '/edit-world-boss-team.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
@@ -365,8 +325,6 @@ const PAGE_LIST = [
     slug : '/event.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? [
           '.column-girl > img',
@@ -385,8 +343,6 @@ const PAGE_LIST = [
     slug : '/girl/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_HAREM_SELECTED_GIRL_AVATAR ? [
           '.awakening-container > .avatar',
@@ -401,8 +357,6 @@ const PAGE_LIST = [
     slug : '/god-path.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.feature-girl > .avatar'] : []),
         '.container-category > .feature-bgr',
@@ -415,8 +369,6 @@ const PAGE_LIST = [
     slug : '/harem.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_HAREM_SELECTED_GIRL_AVATAR ? [
           '.avatar-box > .avatar',
@@ -435,9 +387,6 @@ const PAGE_LIST = [
         '.news_page_content > .news_page_pic',
         '.news_thumb > .news_thumb_pic',
       ],
-      cssToModify : [],
-      // Only include the selector when the setting is enabled — mirrors the ALL entry logic.
-      imagesSrcToReplace : [...(REPLACE_BACKGROUND ? ['.fixed_scaled > img'] : [])],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.waifu-container > .avatar'] : []),
         '.info-top-block > .bunny-rotate-device',
@@ -445,18 +394,12 @@ const PAGE_LIST = [
       ],
       imagesToHideTemporarily : [],
     },
-    values : {
-      cssToModify : [],
-      imagesSrcToReplace : REPLACE_BACKGROUND ? NEW_BACKGROUND_URL : '',
-    },
   },
   {
     name : 'LABYRINTH',
     slug : '/labyrinth.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? [
           '.labyrinth-girl > .avatar',
@@ -471,8 +414,6 @@ const PAGE_LIST = [
     slug : '/labyrinth-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? [
           '.pvp-girls > .avatar',
@@ -487,8 +428,6 @@ const PAGE_LIST = [
     slug : '/labyrinth-entrance.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
       ],
@@ -500,8 +439,6 @@ const PAGE_LIST = [
     slug : '/labyrinth-pool-select.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
@@ -511,25 +448,8 @@ const PAGE_LIST = [
     slug : '/labyrinth-pre-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.labyrinth-girl > .avatar'] : []),
-      ],
-      imagesToHideTemporarily : [],
-    },
-  },
-  {
-    name : 'LEAGUES',
-    slug : '/leagues.html',
-    selectors : {
-      backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
-      imagesSrcToHidePermanently : [
-        ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girl-block > .avatar'] : []),
-        ...(HIDE_OTHER_PLAYERS_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
-        '.tier_icons > img',
       ],
       imagesToHideTemporarily : [],
     },
@@ -539,8 +459,6 @@ const PAGE_LIST = [
     slug : '/league-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
       ],
@@ -548,12 +466,23 @@ const PAGE_LIST = [
     },
   },
   {
-    name : 'LEAGUE PRE-BATTLE',
-    slug : '/league-pre-battle.html',
+    name : 'LEAGUES',
+    slug : '/leagues.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girl-block > .avatar'] : []),
+        ...(HIDE_OTHER_PLAYERS_AVATARS ? ['.square-avatar-wrapper > img', '.player-profile-picture > img'] : []),
+        '.tier_icons > img',
+      ],
+      imagesToHideTemporarily : [],
+    },
+  },
+  {
+    name : 'LEAGUES PRE-BATTLE',
+    slug : '/leagues-pre-battle.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-block > .avatar'] : []),
       ],
@@ -565,8 +494,6 @@ const PAGE_LIST = [
     slug : '/love-raids.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? [
           '.left-girl-container > .avatar',
@@ -583,8 +510,6 @@ const PAGE_LIST = [
     slug : '/member-progression.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : ['.page-girl > img'],
       imagesToHideTemporarily : [],
     },
@@ -594,8 +519,6 @@ const PAGE_LIST = [
     slug : '/pachinko.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.pachinko_img > img',
       ],
@@ -607,8 +530,6 @@ const PAGE_LIST = [
     slug : '/pantheon.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-container > .avatar'] : []),
         '.pantheon_bgr > .stage-bgr',
@@ -621,8 +542,6 @@ const PAGE_LIST = [
     slug : '/pantheon-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
       ],
@@ -634,8 +553,6 @@ const PAGE_LIST = [
     slug : '/pantheon-pre-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.fixed_scaled > img',
         '.player-profile-picture > img',
@@ -648,8 +565,6 @@ const PAGE_LIST = [
     slug : '/path-of-glory.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? [
           '.left_side > .avatar',
@@ -665,8 +580,6 @@ const PAGE_LIST = [
     slug : '/path-of-valor.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? [
           '.left_side > .avatar',
@@ -682,8 +595,6 @@ const PAGE_LIST = [
     slug : '/penta-drill.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girl_block > .avatar'] : []),
       ],
@@ -695,8 +606,6 @@ const PAGE_LIST = [
     slug : '/penta-drill-arena.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl_block > .avatar'] : []),
       ],
@@ -708,8 +617,6 @@ const PAGE_LIST = [
     slug : '/penta-drill-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.pvp-girls > .avatar'] : []),
       ],
@@ -721,8 +628,6 @@ const PAGE_LIST = [
     slug : '/pvp-arena.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.feature-girl > .avatar'] : []),
       ],
@@ -734,8 +639,6 @@ const PAGE_LIST = [
     slug : '/quest/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : ['.canvas > .picture'],
     },
@@ -745,8 +648,6 @@ const PAGE_LIST = [
     slug : '/season.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girl_block > .avatar'] : []),
       ],
@@ -758,8 +659,6 @@ const PAGE_LIST = [
     slug : '/season-arena.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
@@ -769,8 +668,6 @@ const PAGE_LIST = [
     slug : '/season-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
       ],
@@ -782,8 +679,6 @@ const PAGE_LIST = [
     slug : '/seasonal.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_PLAYERS_AVATARS ? ['.square-avatar-wrapper > img'] : []),
         ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girls-reward-container > .avatar'] : []),
@@ -796,8 +691,6 @@ const PAGE_LIST = [
     slug : '/side-quests.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : ['.side-quest-image > img'],
       imagesToHideTemporarily : [],
     },
@@ -807,8 +700,6 @@ const PAGE_LIST = [
     slug : '/teams.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : ['.girl-image-container > img'],
       imagesToHideTemporarily : [],
     },
@@ -818,8 +709,6 @@ const PAGE_LIST = [
     slug : '/troll-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.new-battle-girl-container > .avatar'] : []),
       ],
@@ -831,8 +720,6 @@ const PAGE_LIST = [
     slug : '/troll-pre-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
@@ -842,8 +729,6 @@ const PAGE_LIST = [
     slug : '/waifu.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-display > .avatar'] : []),
       ],
@@ -855,8 +740,6 @@ const PAGE_LIST = [
     slug : '/world/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_EVENT_GIRLS_AVATARS ? ['.girl_world > .avatar'] : []),
         '.troll_world > .troll-tier-img',
@@ -869,8 +752,6 @@ const PAGE_LIST = [
     slug : '/world-boss-battle.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? ['.pvp-girls > .avatar'] : []),
       ],
@@ -882,8 +763,6 @@ const PAGE_LIST = [
     slug : '/world-boss-event',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         ...(HIDE_OTHER_GIRLS_AVATARS ? [
           '.left-container > .avatar',
@@ -898,8 +777,6 @@ const PAGE_LIST = [
     slug : '/world-boss-pre-battle',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [],
-      imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [],
       imagesToHideTemporarily : [],
     },
@@ -909,8 +786,7 @@ const PAGE_LIST = [
 // Pre-filter once at startup — only keep entries that match the current URL.
 // The 'ALL' entry (empty slug) always matches. All others are tested against href.
 const ACTIVE_PAGES = PAGE_LIST
-  .filter(({slug}) => !slug || window.location.href.includes(slug))
-  .map((page) => ({...page, values : page.values ?? DEFAULT_VALUES}));
+  .filter(({slug}) => !slug || window.location.href.includes(slug));
 
 /**
  * Injects a CSS rule hiding all matched selectors via the given CSS property.
@@ -926,21 +802,6 @@ function injectCssHideRule(selectorsArray, cssProperty) {
   const style = document.createElement('style');
   const cssValue = cssProperty === 'opacity' ? '0' : 'none';
   style.textContent = `${selectorsArray.join(', ')} { ${cssProperty}: ${cssValue} !important; }\n`;
-  document.head.prepend(style);
-}
-
-/**
- * Injects arbitrary CSS rules onto the given selectors.
- */
-function modifyCssOfSelectors(selectorsArray, styleRules) {
-  if (selectorsArray.length === 0) {
-    return;
-  }
-  if (DEBUG_ACTIVATED) {
-    console.log('> PROCESSING MODIFY CSS OF SELECTORS');
-  }
-  const style = document.createElement('style');
-  style.textContent = `${selectorsArray.join(', ')} { ${styleRules.join(' !important; ')} !important; }\n`;
   document.head.prepend(style);
 }
 
@@ -1011,16 +872,14 @@ function isAnySettingEnabled() {
  * ACTIVE_PAGES is pre-filtered at startup, so no slug-matching happens here.
  */
 function runAllHidingProcesses() {
-  ACTIVE_PAGES.forEach(({name, selectors, slug, values}) => {
+  ACTIVE_PAGES.forEach(({name, selectors, slug}) => {
     if (DEBUG_ACTIVATED) {
       console.log('> ')
       console.log(`> HIDING MEDIAS IN ${name} PAGE with SLUG: ${slug}`)
     }
     const {
       backgroundImagesSrcToHidePermanently,
-      cssToModify,
       imagesSrcToHidePermanently,
-      imagesSrcToReplace,
       imagesToHideTemporarily,
     } = selectors;
 
@@ -1028,17 +887,17 @@ function runAllHidingProcesses() {
     if (!isCssInjected) {
       injectCssHideRule(backgroundImagesSrcToHidePermanently, 'background-image');
       injectCssHideRule(imagesSrcToHidePermanently, 'opacity');
-      cssToModify.forEach((selectorGroup, i) => {
-        modifyCssOfSelectors(selectorGroup, values.cssToModify[i]);
-      });
     }
 
-    // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
-    if (isDOMReady) {
-      processImagesSrcToReplace(imagesSrcToReplace, values.imagesSrcToReplace);
+    if (isDOMReady) { // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
       modifyElementsStyle(imagesToHideTemporarily, 'display', 'none');
     }
   });
+
+  // ALL PAGES - REPLACE BACKGROUND
+  if (isDOMReady && REPLACE_BACKGROUND && !HIDE_BACKGROUND) { // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
+    processImagesSrcToReplace(BACKGROUND_SELECTORS, NEW_BACKGROUND_URL);
+  }
 }
 
 /**
