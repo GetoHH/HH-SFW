@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.5
+// @version      4.1.6
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.6: refactor setElementsDisplay to modifyElementsStyle
 // 4.1.5: fix removed background-image css (opacity instead of display)
 // 4.1.4: fix removed image css (opacity instead of display)
 // 4.1.3: fix button position
@@ -991,22 +992,22 @@ function processImagesSrcToReplace(selectorsArray, newSrc) {
 }
 
 /**
- * Sets display style directly on matched elements.
- * Used for temporarily hiding (none) or showing again (block) elements.
+ * Modify style directly on matched elements.
+ * Used for temporarily hiding (opacity: 0) or showing again (opacity: 100) elements.
  */
-function setElementsDisplay(selectorsArray, displayValue) {
+function modifyElementsStyle(selectorsArray, property, value) {
   if (selectorsArray.length === 0) {
     return;
   }
   if (DEBUG_ACTIVATED) {
-    console.log(`> SETTING ELEMENTS DISPLAY: ${displayValue}`);
+    console.log(`> SETTING ELEMENTS style ${property} to ${value}`);
   }
   const elements = document.querySelectorAll(selectorsArray.join(', '));
   if (DEBUG_ACTIVATED) {
     console.log('> nb of elements:', elements.length);
   }
   elements.forEach((element) => {
-    element.style.display = displayValue;
+    element.style[property] = value;
   });
 }
 
@@ -1061,7 +1062,7 @@ function runAllHidingProcesses() {
     // DOM manipulation — skipped on the early call, only runs after DOMContentLoaded
     if (isDOMReady) {
       processImagesSrcToReplace(imagesSrcToReplace, values.imagesSrcToReplace);
-      setElementsDisplay(imagesToHideTemporarily, 'none');
+      modifyElementsStyle(imagesToHideTemporarily, 'display', 'none');
     }
   });
 }
@@ -1079,7 +1080,7 @@ function runAllRevealingProcesses() {
       console.log('> ');
       console.log(`> REVEALING MEDIAS IN ${name} PAGE with SLUG: ${slug}`);
     }
-    setElementsDisplay(selectors.imagesToHideTemporarily, 'block');
+    modifyElementsStyle(selectors.imagesToHideTemporarily,'display', 'block');
   });
 }
 
@@ -1434,7 +1435,7 @@ function injectHhsButtonSibling() {
 }
 
 // DOM is ready, resources may still be loading.
-// Set isDOMReady so that processImagesSrcToReplace and setElementsDisplay are now allowed to run.
+// Set isDOMReady so that processImagesSrcToReplace and modifyElementsStyle are now allowed to run.
 // CSS injection is skipped on this second call (isCssInjected is already true).
 document.addEventListener('DOMContentLoaded', function () {
   if (DEBUG_ACTIVATED) {
