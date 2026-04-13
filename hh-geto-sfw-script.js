@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.6
+// @version      4.1.7
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.7: revert background-image css processing back to background-image instead of opacity
 // 4.1.6: refactor setElementsDisplay to modifyElementsStyle
 // 4.1.5: fix removed background-image css (opacity instead of display)
 // 4.1.4: fix removed image css (opacity instead of display)
@@ -1052,7 +1053,7 @@ function runAllHidingProcesses() {
 
     // CSS injection — runs once only on the early call, before DOMContentLoaded
     if (!isCssInjected) {
-      injectCssHideRule(backgroundImagesSrcToHidePermanently, 'opacity');
+      injectCssHideRule(backgroundImagesSrcToHidePermanently, 'background-image');
       injectCssHideRule(imagesSrcToHidePermanently, 'opacity');
       cssToModify.forEach((selectorGroup, i) => {
         modifyCssOfSelectors(selectorGroup, values.cssToModify[i]);
