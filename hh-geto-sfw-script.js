@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.1.7
+// @version      4.1.8
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.1.8: fix champions css due to display none to opacity 0 change
 // 4.1.7: revert background-image css processing back to background-image instead of opacity
 // 4.1.6: refactor setElementsDisplay to modifyElementsStyle
 // 4.1.5: fix removed background-image css (opacity instead of display)
@@ -242,14 +243,7 @@ const PAGE_LIST = [
     slug : '/champions/',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [
-        ['.girl-information'],
-        ['.nc-event-reward-info'],
-        ['.champions-over__champion-rewards-outline'],
-        ['.champions-over__champion-wrapper > .champions-over__champion-info'],
-        ['.champions-over__champion-tier-link'],
-        ['.champions-over__girl-image'],
-      ],
+      cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.champions-over__champion-wrapper > .champions-over__champion-image',
@@ -264,14 +258,7 @@ const PAGE_LIST = [
       imagesToHideTemporarily : [],
     },
     values : {
-      cssToModify : [
-        ['display: flex', 'position: relative', 'left: 200px', 'top: 0px'],
-        ['top: 0px', 'left: 100px'],
-        ['display: flex', 'position: absolute', 'left: -250px', 'top: 50px', 'width: 100%'],
-        ['display: flex', 'position: relative', 'left: -250px', 'top: 100px'],
-        ['display: inline-flex', 'width: 2.5rem', 'height: 2.5rem'],
-        ['top: -60px', 'right: 50px'],
-      ],
+      cssToModify : [],
       imagesSrcToReplace : [],
     },
   },
@@ -296,14 +283,7 @@ const PAGE_LIST = [
     slug : '/club-champion.html',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
-      cssToModify : [
-        ['.girl-information'],
-        ['.nc-event-reward-info'],
-        ['.champions-over__champion-rewards-outline'],
-        ['.champions-over__champion-wrapper > .champions-over__champion-info'],
-        ['.champions-over__champion-tier-link'],
-        ['.champions-over__girl-image'],
-      ],
+      cssToModify : [],
       imagesSrcToReplace : [],
       imagesSrcToHidePermanently : [
         '.attacker-preview > .character',
@@ -324,14 +304,7 @@ const PAGE_LIST = [
       imagesToHideTemporarily : [],
     },
     values : {
-      cssToModify : [
-        ['display: flex', 'position: relative', 'left: 200px', 'top: 0px'],
-        ['top: 0px', 'left: 100px'],
-        ['display: flex', 'position: absolute', 'left: -250px', 'top: 50px', 'width: 100%'],
-        ['display: flex', 'position: relative', 'left: -250px', 'top: 100px'],
-        ['display: inline-flex', 'width: 2.5rem', 'height: 2.5rem'],
-        ['top: -60px', 'right: 50px'],
-      ],
+      cssToModify : [],
       imagesSrcToReplace : [],
     },
   },
