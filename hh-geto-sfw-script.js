@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.2.0
+// @version      4.2.1
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.2.1: disable debug
 // 4.2.0: refactor of imagesSrcToReplace and cleanup
 // 4.1.8: fix champions css due to display none to opacity 0 change
 // 4.1.7: revert background-image css processing back to background-image instead of opacity
@@ -92,8 +93,7 @@ const HIDE_BACKGROUND = false;
 /**
  * VARIABLES
  */
-// let is required — DEBUG_ACTIVATED is reassigned to false inside checkDebugLimit()
-let DEBUG_ACTIVATED = true; // eslint-disable-line no-var
+let DEBUG_ACTIVATED = false; // eslint-disable-line no-var
 let debugLimitCount = 0;
 let isCssInjected = false;
 let isDOMReady = false;
