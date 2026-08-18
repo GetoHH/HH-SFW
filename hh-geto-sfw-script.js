@@ -2,7 +2,7 @@
 // @name         Hentai Heroes SFW
 // @namespace    https://sleazyfork.org/fr/scripts/539097-hentai-heroes-sfw
 // @description  Removing explicit images in Hentai Heroes game and changing game background to a SFW one.
-// @version      4.2.1
+// @version      4.3.0
 // @match        https://*.hentaiheroes.com/*
 // @run-at       document-start
 // @grant        none
@@ -11,6 +11,7 @@
 // ==/UserScript==
 
 // ==CHANGELOG==
+// 4.3.0: add edit penta drill team screen
 // 4.2.1: disable debug
 // 4.2.0: refactor of imagesSrcToReplace and cleanup
 // 4.1.8: fix champions css due to display none to opacity 0 change
@@ -290,6 +291,17 @@ const PAGE_LIST = [
   {
     name : 'EDIT LABYRINTH TEAM',
     slug : '/edit-labyrinth-team.html',
+    selectors : {
+      backgroundImagesSrcToHidePermanently : [],
+      imagesSrcToHidePermanently : [
+        ...(HIDE_OTHER_GIRLS_AVATARS ? ['.girl-display > .avatar'] : []),
+      ],
+      imagesToHideTemporarily : [],
+    },
+  },
+  {
+    name : 'EDIT PENTA DRILL TEAM',
+    slug : '/edit-penta-drill-team',
     selectors : {
       backgroundImagesSrcToHidePermanently : [],
       imagesSrcToHidePermanently : [
